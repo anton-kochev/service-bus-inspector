@@ -9,7 +9,9 @@ A .NET 9.0 console application for real-time monitoring of Azure Service Bus que
 - Color-coded health status indicators (Green/Yellow/Red)
 - Queue size tracking
 - Message peeking - view message contents without removing them from the queue
-- Detailed message information display (subject, ID, properties, body, timestamps)
+- Dead-letter queue viewing - inspect failed messages with full details
+- Interactive message details viewer with clickable message selection
+- Detailed message information display (subject, ID, sequence number, properties, body, timestamps)
 - Rich terminal UI powered by Spectre.Console
 - Native AOT compilation support for fast startup and low memory footprint
 
@@ -24,6 +26,15 @@ dotnet run -- --queue <queue-name> --conn "Endpoint=sb://..." --refresh-interval
 - `--queue` - Optional. Service Bus queue name
 - `--conn` - Optional. Azure Service Bus connection string
 - `--refresh-interval` - Optional. Metrics refresh interval in seconds (default: 5)
+
+### Interactive Controls
+
+Once the application is running:
+1. Press `Tab` to navigate between buttons
+2. Press `Enter` to activate a button
+3. Click "Peek messages" to view both main queue and dead-letter queue messages
+4. In the dead-letter queue panel, select any message to view its full details
+5. Press `Ctrl+C` to exit
 
 ## Build
 
@@ -50,3 +61,12 @@ When using the Azure Service Bus Emulator:
 - Scheduled message count shows 0 (requires ServiceBusAdministrationClient API not supported by emulator)
 - Queue size in bytes shows 0 (requires ServiceBusAdministrationClient API not supported by emulator)
 - Active and dead-letter message counts work via peek operations
+- Message peek is limited to 10 messages per queue (main and dead-letter)
+
+## Architecture
+
+The application uses:
+- **RazorConsole**: Terminal-based Razor component rendering
+- **Azure Service Bus SDK**: Queue operations and message peeking
+- **Spectre.Console**: Rich terminal styling and colors
+- **PeriodicTimer**: Automatic metric refresh at configured intervals

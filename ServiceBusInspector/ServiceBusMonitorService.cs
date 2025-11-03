@@ -110,11 +110,13 @@ public sealed class ServiceBusMonitorService : IDisposable
     /// <param name="queueName">The name of the queue to peek from.</param>
     /// <param name="maxMessages">Maximum number of messages to peek (default: 10).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A list of peeked messages.</returns>
-    public async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekMessagesAsync(
-        string queueName,
-        int maxMessages = 10,
-        CancellationToken cancellationToken = default)
+    /// <returns>A tuple containing lists of peeked messages and dead-lettered messages.</returns>
+    public async
+        Task<(IReadOnlyList<ServiceBusReceivedMessage> Peeked, IReadOnlyList<ServiceBusReceivedMessage> DeadLettered)>
+        PeekMessagesAsync(
+            string queueName,
+            int maxMessages = 10,
+            CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(queueName))
         {
@@ -123,13 +125,28 @@ public sealed class ServiceBusMonitorService : IDisposable
 
         _client ??= new ServiceBusClient(_connectionString);
 
+        // Peek regular messages
         ServiceBusReceiver receiver = _client.CreateReceiver(queueName);
+        IReadOnlyList<ServiceBusReceivedMessage> peekedMessages;
         await using (receiver.ConfigureAwait(false))
         {
-            IReadOnlyList<ServiceBusReceivedMessage> messages =
+            peekedMessages =
                 await receiver.PeekMessagesAsync(maxMessages: maxMessages, cancellationToken: cancellationToken);
-            return messages;
         }
+
+        // Peek dead-lettered messages
+        ServiceBusReceiver deadLetterReceiver = _client.CreateReceiver(queueName, new ServiceBusReceiverOptions
+        {
+            SubQueue = SubQueue.DeadLetter
+        });
+        IReadOnlyList<ServiceBusReceivedMessage> deadLetteredMessages;
+        await using (deadLetterReceiver.ConfigureAwait(false))
+        {
+            deadLetteredMessages = await deadLetterReceiver
+                .PeekMessagesAsync(maxMessages: maxMessages, cancellationToken: cancellationToken);
+        }
+
+        return (peekedMessages, deadLetteredMessages);
     }
 
     public void Dispose()

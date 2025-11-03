@@ -24,7 +24,7 @@
     <!-- Navigation and Actions -->
 
     <Align Horizontal="HorizontalAlignment.Center">
-        <Panel>
+        <Panel Border="BoxBorder.Rounded">
             <TextButton Content="Peek messages" OnClick="@OnPeekMessages"
                         FocusedColor="Color.Yellow"/>
             <Markup Content=" | "></Markup>
@@ -40,52 +40,182 @@
 
     <!-- Message Queue Display -->
 
-    <Panel Title="@($"{AppOptions.QueueName}")" Border="BoxBorder.Double">
-        @switch (_peekedMessages)
-        {
-            case { Count: > 0 }:
+    <Grid Expand="true" Columns="2">
+        <Panel Title="@($"{AppOptions.QueueName}")" Border="BoxBorder.Double" Expand="true">
+            @switch (_messagesQueue)
             {
-                foreach (ServiceBusReceivedMessage message in _peekedMessages)
+                case { Count: > 0 }:
                 {
-                    <Panel Title="@($"Message #{message.SequenceNumber}")">
-                        <Markup Content="Subject: " Decoration="Decoration.Bold"/><Markup Content="@(message.Subject ?? "(none)")"/>
-                        <Markup Content="Message ID: " Decoration="Decoration.Bold"/><Markup Content="@message.MessageId"/>
-                        <Markup Content="Content Type: " Decoration="Decoration.Bold"/><Markup Content="@(message.ContentType ?? "(none)")"/>
-                        <Markup Content="Size: " Decoration="Decoration.Bold"/><Markup Content="@($"{message.Body.ToArray().Length} bytes")"/>
-                        <Markup Content="Enqueued Time: " Decoration="Decoration.Bold"/><Markup Content="@message.EnqueuedTime.ToString("yyyy-MM-dd HH:mm:ss")"/>
-                        @if (message.ApplicationProperties.Count > 0)
-                        {
-                            <Markup Content="Application Properties:" Decoration="Decoration.Bold"/>
-                            foreach (var prop in message.ApplicationProperties)
+                    foreach (ServiceBusReceivedMessage message in _messagesQueue)
+                    {
+                        <Panel Title="@($"Message #{message.SequenceNumber}")">
+                            <Markup Content="Subject: " Decoration="Decoration.Bold"/>
+                            <Markup Content="@(message.Subject ?? "(none)")"/>
+                            <Markup Content="Message ID: " Decoration="Decoration.Bold"/>
+                            <Markup Content="@message.MessageId"/>
+                            <Markup Content="Content Type: " Decoration="Decoration.Bold"/>
+                            <Markup Content="@(message.ContentType ?? "(none)")"/>
+                            <Markup Content="Size: " Decoration="Decoration.Bold"/>
+                            <Markup Content="@($"{message.Body.ToArray().Length} bytes")"/>
+                            <Markup Content="Enqueued Time: " Decoration="Decoration.Bold"/>
+                            <Markup Content="@message.EnqueuedTime.ToString("yyyy-MM-dd HH:mm:ss")"/>
+                            @if (message.ApplicationProperties.Count > 0)
                             {
-                                <Markup Content="@($"  {prop.Key}: {prop.Value?.ToString() ?? "null"}")"/>
+                                <Markup Content="Application Properties:" Decoration="Decoration.Bold"/>
+                                foreach (var prop in message.ApplicationProperties)
+                                {
+                                    <Markup Content="@($"  {prop.Key}: {prop.Value?.ToString() ?? "null"}")"/>
+                                }
                             }
+                            <Markup Content="Body:" Decoration="Decoration.Bold"/>
+                            <Markup Content="@GetMessageBody(message)"/>
+                        </Panel>
+                    }
+
+                    break;
+                }
+                case { Count: 0 }:
+                    <Markup Content="No messages in queue" Foreground="Color.Yellow"/>
+                    break;
+                default:
+                {
+                    if (!string.IsNullOrEmpty(_peekError))
+                    {
+                        <Markup Content="@($"Error: {_peekError}")" Foreground="Color.Red"/>
+                    }
+                    else
+                    {
+                        <Markup Content="Click 'Peek messages' to view queue contents" Foreground="Color.Grey58"/>
+                    }
+
+                    break;
+                }
+            }
+        </Panel>
+
+        <Panel Title="Dead Letter Queue" Border="BoxBorder.Double" Expand="true">
+            <Rows>
+                @switch (_deadLetterQueue)
+                {
+                    case { Count: > 0 }:
+                    {
+                        foreach (ServiceBusReceivedMessage message in _deadLetterQueue)
+                        {
+                            <Columns>
+                                <Markup Content="@($"{message.EnqueuedTime}")"></Markup>
+                                <Markup Content="|"></Markup>
+                                <TextButton Content="@($"#{message.MessageId}")"
+                                            OnClick="@(() =>
+                                                     {
+                                                         _message = message;
+                                                         StateHasChanged();
+                                                     })"
+                                            FocusedColor="Color.CornflowerBlue"/>
+                            </Columns>
                         }
-                        <Markup Content="Body:" Decoration="Decoration.Bold"/>
-                        <Markup Content="@GetMessageBody(message)"/>
-                    </Panel>
-                }
 
-                break;
-            }
-            case { Count: 0 }:
-                <Markup Content="No messages in queue" Foreground="Color.Yellow"/>
-                break;
-            default:
+                        break;
+                    }
+                    case { Count: 0 }:
+                        <Markup Content="No messages in dead letter queue" Foreground="Color.Yellow"/>
+                        break;
+                    default:
+                    {
+                        if (!string.IsNullOrEmpty(_peekError))
+                        {
+                            <Markup Content="@($"Error: {_peekError}")" Foreground="Color.Red"/>
+                        }
+                        else
+                        {
+                            <Markup Content="Click 'Peek messages' to view queue contents" Foreground="Color.Grey58"/>
+                        }
+
+                        break;
+                    }
+                }
+            </Rows>
+        </Panel>
+    </Grid>
+
+    @if (_message != null)
+    {
+        <table class="table" data-expand="true" data-border="Rounded">
+            <tbody>
+            <tr>
+                <td>
+                    <Markup Content="Subject" Decoration="Decoration.Bold"/>
+                </td>
+                <td>
+                    <Markup Content="@(_message.Subject ?? "(none)")"/>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <Markup Content="Message ID" Decoration="Decoration.Bold"/>
+                </td>
+                <td>
+                    <Markup Content="@_message.MessageId"/>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <Markup Content="Sequence Number" Decoration="Decoration.Bold"/>
+                </td>
+                <td>
+                    <Markup Content="@_message.SequenceNumber.ToString()"/>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <Markup Content="Content Type" Decoration="Decoration.Bold"/>
+                </td>
+                <td>
+                    <Markup Content="@(_message.ContentType ?? "(none)")"/>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <Markup Content="Size" Decoration="Decoration.Bold"/>
+                </td>
+                <td>
+                    <Markup Content="@($"{_message.Body.ToArray().Length} bytes")"/>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <Markup Content="Enqueued Time" Decoration="Decoration.Bold"/>
+                </td>
+                <td>
+                    <Markup Content="@_message.EnqueuedTime.ToString("yyyy-MM-dd HH:mm:ss")"/>
+                </td>
+            </tr>
+            @if (_message.ApplicationProperties.Count > 0)
             {
-                if (!string.IsNullOrEmpty(_peekError))
-                {
-                    <Markup Content="@($"Error: {_peekError}")" Foreground="Color.Red"/>
-                }
-                else
-                {
-                    <Markup Content="Click 'Peek messages' to view queue contents" Foreground="Color.Grey58"/>
-                }
-
-                break;
+                <tr>
+                    <td>
+                        <Markup Content="Application Properties" Decoration="Decoration.Bold"/>
+                    </td>
+                    <td>
+                        <Rows>
+                            @foreach (KeyValuePair<string, object> prop in _message.ApplicationProperties)
+                            {
+                                <Markup Content="@($"{prop.Key}: {prop.Value?.ToString() ?? "null"}")"/>
+                            }
+                        </Rows>
+                    </td>
+                </tr>
             }
-        }
-    </Panel>
+            <tr>
+                <td>
+                    <Markup Content="Body" Decoration="Decoration.Bold"/>
+                </td>
+                <td>
+                    <Markup Content="@GetMessageBody(_message)"/>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    }
 
     <!-- End of Message Queue Display -->
 
@@ -100,7 +230,9 @@
     private PeriodicTimer? _timer;
     private Task? _pollingTask;
     private CancellationTokenSource? _cts;
-    private IReadOnlyList<ServiceBusReceivedMessage>? _peekedMessages;
+    private ServiceBusReceivedMessage? _message;
+    private IReadOnlyList<ServiceBusReceivedMessage>? _messagesQueue;
+    private IReadOnlyList<ServiceBusReceivedMessage>? _deadLetterQueue;
     private string? _peekError;
 
     protected override async Task OnInitializedAsync()
@@ -164,7 +296,7 @@
         try
         {
             _peekError = null;
-            _peekedMessages = await MonitorService.PeekMessagesAsync(
+            (_messagesQueue, _deadLetterQueue) = await MonitorService.PeekMessagesAsync(
                 AppOptions.QueueName!,
                 maxMessages: 10,
                 cancellationToken: _cts?.Token ?? CancellationToken.None);
@@ -173,12 +305,12 @@
         catch (Exception ex)
         {
             _peekError = $"{ex.GetType().Name}: {ex.Message}";
-            _peekedMessages = null;
+            _messagesQueue = null;
             StateHasChanged();
         }
     }
 
-    private string GetMessageBody(ServiceBusReceivedMessage message)
+    private static string GetMessageBody(ServiceBusReceivedMessage message)
     {
         try
         {
@@ -188,6 +320,7 @@
             {
                 return body[..500] + " ...[truncated]";
             }
+
             return body;
         }
         catch
