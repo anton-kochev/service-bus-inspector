@@ -10,23 +10,42 @@ using ServiceBusInspector;
 // Parse command-line arguments
 string? queueName = null;
 string? connectionString = null;
+int refreshIntervalSeconds = 5;
 for (int i = 0; i < args.Length; i++)
 {
-    if (args[i] == "--queue" && i + 1 < args.Length)
+    switch (args[i])
     {
-        queueName = args[i + 1];
-    }
-    else if (args[i] == "--conn" && i + 1 < args.Length)
-    {
-        connectionString = args[i + 1];
+        case "--queue" when i + 1 < args.Length:
+            queueName = args[i + 1];
+            break;
+        case "--conn" when i + 1 < args.Length:
+            connectionString = args[i + 1];
+            break;
+        case "--refresh-interval" when i + 1 < args.Length:
+        {
+            if (int.TryParse(args[i + 1], out int interval) && interval > 0)
+            {
+                refreshIntervalSeconds = interval;
+            }
+
+            break;
+        }
     }
 }
 
 IHostBuilder builder = Host.CreateDefaultBuilder(args)
     .ConfigureServices(services =>
     {
-        // Register the queue name as a singleton service
-        services.AddSingleton(new AppOptions { QueueName = queueName, ConnectionString = connectionString});
+        // Register the app options as a singleton service
+        services.AddSingleton(new AppOptions
+        {
+            QueueName = queueName,
+            ConnectionString = connectionString,
+            RefreshIntervalSeconds = refreshIntervalSeconds
+        });
+
+        // Register the Service Bus monitor service
+        services.AddSingleton(_ => new ServiceBusMonitorService(connectionString!));
     })
     .UseRazorConsole<ServiceBusInspector.ServiceBusInspector>();
 IHost host = builder

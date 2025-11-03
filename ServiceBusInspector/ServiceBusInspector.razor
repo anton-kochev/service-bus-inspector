@@ -1,20 +1,230 @@
 @using RazorConsole.Components
 @using Spectre.Console
 @using Microsoft.AspNetCore.Components
+@using System.Threading
+@using System.Collections.Generic
+@using System.Text
+@using Azure.Messaging.ServiceBus
 @using Align = RazorConsole.Components.Align
 @using Markup = RazorConsole.Components.Markup
 @inject AppOptions AppOptions
+@inject ServiceBusMonitorService MonitorService
+@implements IAsyncDisposable
 
-<Figlet Content="Service Bus Inspector" />
-
-<Align Horizontal="@HorizontalAlignment.Center">
-    <Markup Content="Tab to change focus • Enter to submit • Ctrl+C to exit" Foreground="@Color.Grey58" />
+<Align Horizontal="HorizontalAlignment.Center">
+    <Markdown Content="SERVICE BUS INSPECTOR"></Markdown>
 </Align>
 
+<Panel>
 
-<Markup Content="@($"Connection: {AppOptions.ConnectionString ?? "---"}")" Foreground="@Color.BlueViolet" />
-<Markup Content="@($"Queue: {AppOptions.QueueName ?? "---"}")" Foreground="@Color.BlueViolet" />
+    <Align Horizontal="@HorizontalAlignment.Center">
+        <Markup Content="Tab to change focus • Enter to submit • Ctrl+C to exit" Foreground="@Color.Grey58"/>
+    </Align>
 
+    <!-- Navigation and Actions -->
+
+    <Align Horizontal="HorizontalAlignment.Center">
+        <Panel>
+            <TextButton Content="Peek messages" OnClick="@OnPeekMessages"
+                        FocusedColor="Color.Yellow"/>
+            <Markup Content=" | "></Markup>
+            <TextButton Content="Reset queue" OnClick="@OnResetQueue"
+                        FocusedColor="Color.Yellow"/>
+            <Markup Content=" | "></Markup>
+            <TextButton Content="Change queue" OnClick="@OnChangeQueue"
+                        FocusedColor="Color.Yellow"/>
+        </Panel>
+    </Align>
+
+    <!-- End of Navigation and Actions -->
+
+    <!-- Message Queue Display -->
+
+    <Panel Title="@($"{AppOptions.QueueName}")" Border="BoxBorder.Double">
+        @switch (_peekedMessages)
+        {
+            case { Count: > 0 }:
+            {
+                foreach (ServiceBusReceivedMessage message in _peekedMessages)
+                {
+                    <Panel Title="@($"Message #{message.SequenceNumber}")">
+                        <Markup Content="Subject: " Decoration="Decoration.Bold"/><Markup Content="@(message.Subject ?? "(none)")"/>
+                        <Markup Content="Message ID: " Decoration="Decoration.Bold"/><Markup Content="@message.MessageId"/>
+                        <Markup Content="Content Type: " Decoration="Decoration.Bold"/><Markup Content="@(message.ContentType ?? "(none)")"/>
+                        <Markup Content="Size: " Decoration="Decoration.Bold"/><Markup Content="@($"{message.Body.ToArray().Length} bytes")"/>
+                        <Markup Content="Enqueued Time: " Decoration="Decoration.Bold"/><Markup Content="@message.EnqueuedTime.ToString("yyyy-MM-dd HH:mm:ss")"/>
+                        @if (message.ApplicationProperties.Count > 0)
+                        {
+                            <Markup Content="Application Properties:" Decoration="Decoration.Bold"/>
+                            foreach (var prop in message.ApplicationProperties)
+                            {
+                                <Markup Content="@($"  {prop.Key}: {prop.Value?.ToString() ?? "null"}")"/>
+                            }
+                        }
+                        <Markup Content="Body:" Decoration="Decoration.Bold"/>
+                        <Markup Content="@GetMessageBody(message)"/>
+                    </Panel>
+                }
+
+                break;
+            }
+            case { Count: 0 }:
+                <Markup Content="No messages in queue" Foreground="Color.Yellow"/>
+                break;
+            default:
+            {
+                if (!string.IsNullOrEmpty(_peekError))
+                {
+                    <Markup Content="@($"Error: {_peekError}")" Foreground="Color.Red"/>
+                }
+                else
+                {
+                    <Markup Content="Click 'Peek messages' to view queue contents" Foreground="Color.Grey58"/>
+                }
+
+                break;
+            }
+        }
+    </Panel>
+
+    <!-- End of Message Queue Display -->
+
+</Panel>
+
+<Align Horizontal="HorizontalAlignment.Right">
+    <Markup Content="@(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"))" Foreground="Color.Grey58"/>
+</Align>
 
 @code {
+    private QueueMetrics? _metrics;
+    private PeriodicTimer? _timer;
+    private Task? _pollingTask;
+    private CancellationTokenSource? _cts;
+    private IReadOnlyList<ServiceBusReceivedMessage>? _peekedMessages;
+    private string? _peekError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(AppOptions.QueueName) || string.IsNullOrEmpty(AppOptions.ConnectionString))
+        {
+            _metrics = new QueueMetrics
+            {
+                Error = "Queue name or connection string not provided",
+                LastUpdated = DateTime.UtcNow
+            };
+            return;
+        }
+
+        _cts = new CancellationTokenSource();
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(AppOptions.RefreshIntervalSeconds));
+        _pollingTask = PollMetricsAsync(_cts.Token);
+
+        await base.OnInitializedAsync();
+    }
+
+    private async Task PollMetricsAsync(CancellationToken cancellationToken)
+    {
+        // Fetch immediately on startup
+        await FetchMetricsAsync(cancellationToken);
+
+        // Then poll at the configured interval
+        while (await _timer!.WaitForNextTickAsync(cancellationToken))
+        {
+            await FetchMetricsAsync(cancellationToken);
+        }
+    }
+
+    private async Task FetchMetricsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            _metrics = await MonitorService.GetQueueMetricsAsync(AppOptions.QueueName!, cancellationToken);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _metrics = new QueueMetrics
+            {
+                Error = $"Failed to fetch metrics: {ex.Message}",
+                LastUpdated = DateTime.UtcNow
+            };
+            StateHasChanged();
+        }
+    }
+
+    private async void OnPeekMessages()
+    {
+        if (string.IsNullOrEmpty(AppOptions.QueueName))
+        {
+            _peekError = "Queue name not configured";
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            _peekError = null;
+            _peekedMessages = await MonitorService.PeekMessagesAsync(
+                AppOptions.QueueName!,
+                maxMessages: 10,
+                cancellationToken: _cts?.Token ?? CancellationToken.None);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _peekError = $"{ex.GetType().Name}: {ex.Message}";
+            _peekedMessages = null;
+            StateHasChanged();
+        }
+    }
+
+    private string GetMessageBody(ServiceBusReceivedMessage message)
+    {
+        try
+        {
+            string body = Encoding.UTF8.GetString(message.Body);
+            // Limit display to the first 500 characters to avoid overwhelming the terminal
+            if (body.Length > 500)
+            {
+                return body[..500] + " ...[truncated]";
+            }
+            return body;
+        }
+        catch
+        {
+            return "[Binary data - cannot display as text]";
+        }
+    }
+
+    private void OnResetQueue()
+    {
+        // TODO: Implement reset queue functionality
+    }
+
+    private void OnChangeQueue()
+    {
+        // TODO: Implement change queue functionality
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts?.CancelAsync()!;
+        _timer?.Dispose();
+
+        if (_pollingTask != null)
+        {
+            try
+            {
+                await _pollingTask;
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when cancelling
+            }
+        }
+
+        _cts?.Dispose();
+        MonitorService?.Dispose();
+    }
+
 }
