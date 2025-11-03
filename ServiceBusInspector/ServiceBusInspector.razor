@@ -1,0 +1,20 @@
+@using RazorConsole.Components
+@using Spectre.Console
+@using Microsoft.AspNetCore.Components
+@using Align = RazorConsole.Components.Align
+@using Markup = RazorConsole.Components.Markup
+@inject AppOptions AppOptions
+
+<Figlet Content="Service Bus Inspector" />
+
+<Align Horizontal="@HorizontalAlignment.Center">
+    <Markup Content="Tab to change focus • Enter to submit • Ctrl+C to exit" Foreground="@Color.Grey58" />
+</Align>
+
+
+<Markup Content="@($"Connection: {AppOptions.ConnectionString ?? "---"}")" Foreground="@Color.BlueViolet" />
+<Markup Content="@($"Queue: {AppOptions.QueueName ?? "---"}")" Foreground="@Color.BlueViolet" />
+
+
+@code {
+}
