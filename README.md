@@ -1,19 +1,25 @@
 # Service Bus Inspector
 
-A .NET 9.0 console application for real-time monitoring of Azure Service Bus queues, built with [RazorConsole](https://github.com/LittleLittleCloud/RazorConsole).
+A .NET 9.0 console application for inspecting and monitoring Azure Service Bus queues, built with [RazorConsole](https://github.com/LittleLittleCloud/RazorConsole).
 
 ## Features
 
-- Real-time queue metrics monitoring with configurable refresh intervals
-- Displays active, dead-letter, and scheduled message counts
-- Color-coded health status indicators (Green/Yellow/Red)
-- Queue size tracking
-- Message peeking - view message contents without removing them from the queue
-- Dead-letter queue viewing - inspect failed messages with full details
-- Interactive message details viewer with clickable message selection
-- Detailed message information display (subject, ID, sequence number, properties, body, timestamps)
-- Rich terminal UI powered by Spectre.Console
-- Native AOT compilation support for fast startup and low memory footprint
+- **Message Peeking**: View message contents from both main queue and dead-letter queue without removing them
+- **Detailed Message Inspection**: Interactive message viewer with full details including:
+  - Subject, Message ID, and Sequence Number
+  - Content Type and Size
+  - Enqueued Time
+  - Application Properties
+  - Message Body (UTF-8 text with truncation for large messages)
+- **Real-time Queue Metrics**: Automatic polling of queue statistics with configurable refresh intervals
+  - Active message count (via peek-based counting)
+  - Dead-letter message count (via peek-based counting)
+- **Interactive Terminal UI**:
+  - Rich formatting powered by Spectre.Console
+  - Tab-based navigation between controls
+  - Clickable message selection in dead-letter queue
+  - Split-pane view for main queue and dead-letter queue
+- **Native AOT Support**: Configured for native compilation in Release mode for fast startup and low memory footprint
 
 ## Usage
 
@@ -32,9 +38,11 @@ dotnet run -- --queue <queue-name> --conn "Endpoint=sb://..." --refresh-interval
 Once the application is running:
 1. Press `Tab` to navigate between buttons
 2. Press `Enter` to activate a button
-3. Click "Peek messages" to view both main queue and dead-letter queue messages
-4. In the dead-letter queue panel, select any message to view its full details
+3. Click "Peek messages" to view both main queue and dead-letter queue messages (limited to 10 messages each)
+4. In the dead-letter queue panel, click any message ID to view its full details in the detailed viewer
 5. Press `Ctrl+C` to exit
+
+Note: "Reset queue" and "Change queue" buttons are placeholders and not yet implemented.
 
 ## Build
 
@@ -43,6 +51,8 @@ dotnet build
 ```
 
 ## Publish
+
+For native AOT compilation:
 
 ```bash
 dotnet publish -c Release
@@ -57,16 +67,39 @@ dotnet publish -c Release
 
 ## Known Limitations
 
-When using the Azure Service Bus Emulator:
-- Scheduled message count shows 0 (requires ServiceBusAdministrationClient API not supported by emulator)
-- Queue size in bytes shows 0 (requires ServiceBusAdministrationClient API not supported by emulator)
-- Active and dead-letter message counts work via peek operations
-- Message peek is limited to 10 messages per queue (main and dead-letter)
+### Metrics Collection
+- **Active and dead-letter counts**: Calculated by peeking through messages (up to 10,000 message safety limit)
+- **Scheduled message count**: Always shows 0 (requires ServiceBusAdministrationClient API)
+- **Queue size in bytes**: Always shows 0 (requires ServiceBusAdministrationClient API)
+- The ServiceBusAdministrationClient API is not available when using the Azure Service Bus Emulator
+
+### Message Peeking
+- Limited to 10 messages per queue (main and dead-letter) per peek operation
+- Message body display is truncated to 500 characters to avoid overwhelming the terminal
+- Binary message bodies cannot be displayed as text
+
+### Planned Features (Not Yet Implemented)
+- Reset queue functionality
+- Change queue functionality (runtime queue switching)
 
 ## Architecture
 
-The application uses:
-- **RazorConsole**: Terminal-based Razor component rendering
-- **Azure Service Bus SDK**: Queue operations and message peeking
+### Technology Stack
+- **RazorConsole**: Terminal-based Razor component rendering with Blazor-like syntax
+- **Azure Service Bus SDK**: Queue operations and message peeking via `ServiceBusClient`
 - **Spectre.Console**: Rich terminal styling and colors
-- **PeriodicTimer**: Automatic metric refresh at configured intervals
+- **PeriodicTimer**: Automatic background metric refresh at configured intervals
+
+### Component Structure
+- `ServiceBusInspector.razor`: Main UI component with split-pane layout and message viewer (ServiceBusInspector/ServiceBusInspector.razor:1)
+- `ServiceBusMonitorService.cs`: Service for retrieving queue metrics and peeking messages (ServiceBusInspector/ServiceBusMonitorService.cs:1)
+- `QueueMetrics.cs`: Data model for queue statistics (ServiceBusInspector/QueueMetrics.cs:1)
+- `AppOptions.cs`: Configuration model for command-line arguments (ServiceBusInspector/AppOptions.cs:1)
+- `Program.cs`: Application entry point with dependency injection setup (ServiceBusInspector/Program.cs:1)
+
+### Key Implementation Details
+- The project uses `Microsoft.NET.Sdk.Razor` to enable Razor component compilation
+- Implicit usings are disabled - all namespaces must be explicitly declared
+- Native AOT is enabled only in Release configuration
+- Message counting is performed by iterative peeking (100 messages at a time) with loop detection
+- The UI updates automatically via `StateHasChanged()` when metrics or messages are refreshed
