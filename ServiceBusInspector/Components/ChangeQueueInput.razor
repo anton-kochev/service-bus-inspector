@@ -1,0 +1,32 @@
+@using RazorConsole.Components
+@using Spectre.Console
+@using Markup = RazorConsole.Components.Markup
+
+<!-- Change Queue Input -->
+<Align Horizontal="HorizontalAlignment.Center" Vertical="VerticalAlignment.Middle">
+    <Markup Content="Enter new queue name below" Foreground="Color.Grey58"></Markup>
+    <TextInput Value="@QueueName"
+               ValueChanged="@OnQueueNameChanged"
+               FocusedBorderColor="Color.Yellow"
+               OnSubmit="@OnSubmit"
+               Expand="true"/>
+    <TextButton Content="Cancel" OnClick="@OnCancel"
+                FocusedColor="Color.Red"/>
+</Align>
+
+@code {
+    [Parameter] public string? QueueName { get; set; }
+
+    [Parameter] public EventCallback<string?> QueueNameChanged { get; set; }
+
+    [Parameter] public EventCallback OnSubmit { get; set; }
+
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task OnQueueNameChanged(string? value)
+    {
+        QueueName = value;
+        await QueueNameChanged.InvokeAsync(value);
+    }
+
+}

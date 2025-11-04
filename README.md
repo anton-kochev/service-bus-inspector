@@ -40,9 +40,9 @@ Once the application is running:
 2. Press `Enter` to activate a button
 3. Click "Peek messages" to view both main queue and dead-letter queue messages (limited to 10 messages each)
 4. In the dead-letter queue panel, click any message ID to view its full details in the detailed viewer
-5. Press `Ctrl+C` to exit
-
-Note: "Change queue" button functionality is not yet fully implemented (requires user input for new queue name).
+5. Click "Change queue" to switch to a different queue at runtime (displays input form for new queue name)
+6. Click "Reset queue" twice to confirm and purge all messages from both main queue and dead-letter queue
+7. Press `Ctrl+C` to exit
 
 ## Build
 
@@ -79,10 +79,10 @@ dotnet publish -c Release
 - Binary message bodies cannot be displayed as text
 
 ### Implemented Features
-- Reset queue functionality with two-click confirmation (purges all messages from both main queue and dead-letter queue)
+- **Reset queue**: Two-click confirmation to purge all messages from both main queue and dead-letter queue
+- **Change queue**: Runtime queue switching with input validation (displays form for entering new queue name)
 
 ### Planned Features (Not Yet Implemented)
-- Complete change queue functionality (runtime queue switching - backend implemented, needs UI for queue name input)
 - Dead-letter message management (requeue or permanently delete individual messages)
 
 ## Architecture
@@ -107,6 +107,7 @@ The application follows a layered architecture with clear separation of concerns
 - **MessageListPanel.razor**: Reusable component for displaying main queue and dead-letter queue messages
 - **MessageDetailsTable.razor**: HTML table component showing detailed message information
 - **StatusMessageDisplay.razor**: Color-coded status message display (warnings and success messages)
+- **ChangeQueueInput.razor**: Queue name input form with validation and cancel button
 
 #### Coordination Layer (`ServiceBusInspector/Coordination/`)
 - **ServiceBusInspectorCoordinator.cs**: Orchestrates complex workflows between services and state

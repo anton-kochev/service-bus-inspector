@@ -15,6 +15,8 @@ namespace ServiceBusInspector;
 public sealed partial class ServiceBusInspector : IAsyncDisposable
 {
     private CancellationTokenSource? _cts;
+    private string? _newQueueName;
+    private bool _showingQueueInput;
 
     [Inject]
     public required AppOptions AppOptions { get; set; }
@@ -117,15 +119,57 @@ public sealed partial class ServiceBusInspector : IAsyncDisposable
         }
     }
 
-    private async Task OnChangeQueue()
+    private void OnChangeQueue()
     {
-        State.SuccessMessage = null;
+        // Clear status messages and reset confirmation
+        State.ClearStatusMessages();
         State.ResetConfirmation();
 
-        // TODO: Prompt user for new queue name
-        // For now, this is a stub implementation
-        State.WarningMessage = "Change queue functionality not yet implemented";
-        await Task.CompletedTask;
+        // Show the queue input form
+        _showingQueueInput = true;
+    }
+
+    private async Task OnSubmitQueueChange()
+    {
+        // Validate queue name
+        if (string.IsNullOrWhiteSpace(_newQueueName))
+        {
+            State.WarningMessage = "Please enter a queue name";
+            return;
+        }
+
+        // Clear messages before switching
+        State.ClearMessages();
+
+        // Call coordinator to change queue
+        string? error = await Coordinator.ChangeQueueAsync(
+            _newQueueName,
+            TimeSpan.FromSeconds(AppOptions.RefreshIntervalSeconds),
+            _cts?.Token ?? CancellationToken.None);
+
+        if (error == null)
+        {
+            // Update AppOptions to reflect the new queue
+            AppOptions.QueueName = _newQueueName;
+
+            // Peek messages from the new queue
+            await Coordinator.PeekMessagesAsync(
+                _newQueueName,
+                maxMessages: 10,
+                cancellationToken: _cts?.Token ?? CancellationToken.None);
+        }
+
+        // Hide input and clear the field
+        _showingQueueInput = false;
+        _newQueueName = null;
+    }
+
+    private void OnCancelQueueChange()
+    {
+        // Hide input and clear the field
+        _showingQueueInput = false;
+        _newQueueName = null;
+        State.ClearStatusMessages();
     }
 
     private void OnMessageSelected(ServiceBusReceivedMessage message)

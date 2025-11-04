@@ -4,44 +4,59 @@
 @using Align = RazorConsole.Components.Align
 @using Markup = RazorConsole.Components.Markup
 
-<Align Horizontal="HorizontalAlignment.Center">
-    <Markdown Content="SERVICE BUS INSPECTOR"></Markdown>
-</Align>
 
 <Panel>
+    <Align Horizontal="HorizontalAlignment.Center">
+        <Padder Padding="new Padding(2, 1, 2, 1)">
+            <Markup Content="SERVICE BUS INSPECTOR" Foreground="Color.Grey58" Decoration="Decoration.Bold"></Markup>
+        </Padder>
+    </Align>
+
     <Align Horizontal="@HorizontalAlignment.Center">
         <Markup Content="Tab to change focus • Enter to submit • Ctrl+C to exit" Foreground="@Color.Grey58"/>
     </Align>
 
-    <!-- Navigation and Actions -->
-    <Align Horizontal="HorizontalAlignment.Center">
-        <Panel Border="BoxBorder.Rounded">
-            <TextButton Content="Peek messages" OnClick="@OnPeekMessages"
-                        FocusedColor="Color.Yellow"/>
-            <Markup Content=" | "></Markup>
-            <TextButton Content="Reset queue" OnClick="@OnResetQueue"
-                        FocusedColor="Color.Yellow"/>
-            <Markup Content=" | "></Markup>
-            <TextButton Content="Change queue" OnClick="@OnChangeQueue"
-                        FocusedColor="Color.Yellow"/>
-        </Panel>
-    </Align>
+    @if (_showingQueueInput)
+    {
+        <Padder Padding="new Padding(2, 1, 2, 1)">
+            <ChangeQueueInput @bind-QueueName="_newQueueName"
+                              OnSubmit="@OnSubmitQueueChange"
+                              OnCancel="@OnCancelQueueChange"/>
+        </Padder>
+    }
 
-    <!-- Message Queue Display -->
-    <Grid Expand="true" Columns="2">
-        <MessageListPanel Title="@($"{AppOptions.QueueName}")"
-                          Messages="@State.MainQueueMessages"
-                          ErrorMessage="@State.PeekError"
-                          OnMessageSelected="@OnMessageSelected"/>
+    @if (!_showingQueueInput)
+    {
+        <!-- Navigation and Actions -->
+        <Align Horizontal="HorizontalAlignment.Center">
+            <Panel Border="BoxBorder.Rounded">
+                <TextButton Content="Peek messages" OnClick="@OnPeekMessages"
+                            FocusedColor="Color.Yellow"/>
+                <Markup Content=" | "></Markup>
+                <TextButton Content="Reset queue" OnClick="@OnResetQueue"
+                            FocusedColor="Color.Yellow"/>
+                <Markup Content=" | "></Markup>
+                <TextButton Content="Change queue" OnClick="@OnChangeQueue"
+                            FocusedColor="Color.Yellow"/>
+            </Panel>
+        </Align>
 
-        <MessageListPanel Title="Dead Letter Queue"
-                          Messages="@State.DeadLetterQueueMessages"
-                          ErrorMessage="@State.PeekError"
-                          OnMessageSelected="@OnMessageSelected"/>
-    </Grid>
+        <!-- Message Queue Display -->
+        <Grid Expand="true" Columns="2">
+            <MessageListPanel Title="@($"{AppOptions.QueueName}")"
+                              Messages="@State.MainQueueMessages"
+                              ErrorMessage="@State.PeekError"
+                              OnMessageSelected="@OnMessageSelected"/>
 
-    <!-- Message Details -->
-    <MessageDetailsTable Message="@State.SelectedMessage"/>
+            <MessageListPanel Title="Dead Letter Queue"
+                              Messages="@State.DeadLetterQueueMessages"
+                              ErrorMessage="@State.PeekError"
+                              OnMessageSelected="@OnMessageSelected"/>
+        </Grid>
+
+        <!-- Message Details -->
+        <MessageDetailsTable Message="@State.SelectedMessage"/>
+    }
 
     <!-- Footer -->
 </Panel>
