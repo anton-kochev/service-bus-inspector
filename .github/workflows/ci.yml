@@ -54,7 +54,7 @@ jobs:
       if: matrix.rid == 'linux-arm64'
       run: |
         sudo apt-get update
-        sudo apt-get install -y clang zlib1g-dev gcc-aarch64-linux-gnu
+        sudo apt-get install -y clang zlib1g-dev gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -79,7 +79,27 @@ jobs:
       run: dotnet build ServiceBusInspector/ServiceBusInspector.sln --configuration Release --no-restore
 
     - name: Publish Native AOT
-      run: dotnet publish ServiceBusInspector/ServiceBusInspector.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained --output ./publish -p:PublishAot=true
+      run: |
+        if [ "${{ matrix.rid }}" = "linux-arm64" ]; then
+          # Configure ARM64 cross-compilation tools
+          dotnet publish ServiceBusInspector/ServiceBusInspector.csproj \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained \
+            --output ./publish \
+            -p:PublishAot=true \
+            -p:CppCompilerAndLinker=clang-16 \
+            -p:SysRoot=/usr/aarch64-linux-gnu \
+            -p:LinkerFlavor=lld \
+            -p:ObjCopyName=aarch64-linux-gnu-objcopy
+        else
+          dotnet publish ServiceBusInspector/ServiceBusInspector.csproj \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained \
+            --output ./publish \
+            -p:PublishAot=true
+        fi
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
