@@ -69,7 +69,7 @@ irm https://raw.githubusercontent.com/anton-kochev/service-bus-inspector/main/in
 
 Download pre-built binaries for your platform from the [Releases](https://github.com/anton-kochev/service-bus-inspector/releases) page:
 
-- **Linux**: x64, ARM64 (tar.gz)
+- **Linux**: x64 (tar.gz)
 - **macOS**: x64 (Intel), ARM64 (Apple Silicon) (tar.gz)
 - **Windows**: x64, ARM64 (zip)
 
@@ -129,8 +129,8 @@ The compiled binary will be in `bin/Release/net9.0/<platform>/publish/service-bu
 The project includes a comprehensive GitHub Actions workflow that:
 
 - Builds the project on Linux, Windows, and macOS in both Debug and Release configurations
-- Publishes Native AOT binaries for 6 platforms:
-  - Linux: x64, ARM64
+- Publishes Native AOT binaries for 5 platforms:
+  - Linux: x64
   - Windows: x64, ARM64
   - macOS: x64 (Intel), ARM64 (Apple Silicon)
 - Runs CodeQL security analysis with extended queries

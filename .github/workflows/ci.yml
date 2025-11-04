@@ -30,9 +30,6 @@ jobs:
           - os: ubuntu-latest
             rid: linux-x64
             artifact-name: linux-x64
-          - os: ubuntu-latest
-            rid: linux-arm64
-            artifact-name: linux-arm64
           - os: windows-latest
             rid: win-x64
             artifact-name: win-x64
@@ -49,12 +46,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Setup ARM64 cross-compilation (Linux ARM64 only)
-      if: matrix.rid == 'linux-arm64'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y clang zlib1g-dev gcc-aarch64-linux-gnu
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -141,9 +132,8 @@ jobs:
         cd ServiceBusInspector-win-arm64
         zip -r ../ServiceBusInspector-win-arm64.zip .
         cd ..
-        # Create tar.gz archives for Linux (x64 and ARM64)
+        # Create tar.gz archive for Linux (x64 only)
         tar -czf ServiceBusInspector-linux-x64.tar.gz -C ServiceBusInspector-linux-x64 .
-        tar -czf ServiceBusInspector-linux-arm64.tar.gz -C ServiceBusInspector-linux-arm64 .
         # Create tar.gz archives for macOS (x64 and ARM64)
         tar -czf ServiceBusInspector-osx-x64.tar.gz -C ServiceBusInspector-osx-x64 .
         tar -czf ServiceBusInspector-osx-arm64.tar.gz -C ServiceBusInspector-osx-arm64 .
@@ -155,7 +145,6 @@ jobs:
           artifacts/ServiceBusInspector-win-x64.zip
           artifacts/ServiceBusInspector-win-arm64.zip
           artifacts/ServiceBusInspector-linux-x64.tar.gz
-          artifacts/ServiceBusInspector-linux-arm64.tar.gz
           artifacts/ServiceBusInspector-osx-x64.tar.gz
           artifacts/ServiceBusInspector-osx-arm64.tar.gz
         fail_on_unmatched_files: true
