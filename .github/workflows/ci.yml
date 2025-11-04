@@ -39,16 +39,22 @@ jobs:
           - os: windows-latest
             rid: win-arm64
             artifact-name: win-arm64
-          - os: macos-13
+          - os: macos-15-intel
             rid: osx-x64
             artifact-name: osx-x64
-          - os: macos-14
+          - os: macos-latest
             rid: osx-arm64
             artifact-name: osx-arm64
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Setup ARM64 cross-compilation (Linux ARM64 only)
+      if: matrix.rid == 'linux-arm64'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang zlib1g-dev gcc-aarch64-linux-gnu
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
