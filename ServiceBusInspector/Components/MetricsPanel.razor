@@ -16,7 +16,7 @@
                         Foreground="@GetForegroundColor(Metrics.ActiveMessageCount)"
                         Background="@GetBackgroundColor(Metrics.ActiveMessageCount)"/>
                 <Markup Content="@($"DLQ {Metrics.DeadLetterMessageCount}")"
-                        Foreground="GetForegroundColor(Metrics.DeadLetterMessageCount)"
+                        Foreground="@GetForegroundColor(Metrics.DeadLetterMessageCount)"
                         Background="@GetBackgroundColor(Metrics.DeadLetterMessageCount)"/>
             </Columns>
         }

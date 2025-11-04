@@ -25,8 +25,63 @@ A .NET 9.0 console application for inspecting and monitoring Azure Service Bus q
   - Split-pane view for main queue and dead-letter queue
 - **Native AOT Support**: Configured for native compilation in Release mode for fast startup and low memory footprint
 
+## Installation
+
+### Homebrew (macOS/Linux)
+
+```bash
+brew tap anton-kochev/tap
+brew install service-bus-inspector
+```
+
+To update:
+```bash
+brew upgrade service-bus-inspector
+```
+
+### Scoop (Windows)
+
+```bash
+scoop bucket add anton-kochev https://github.com/anton-kochev/scoop-bucket
+scoop install service-bus-inspector
+```
+
+To update:
+```bash
+scoop update service-bus-inspector
+```
+
+### Install Script
+
+#### Unix (macOS/Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/anton-kochev/service-bus-inspector/main/install.sh | bash
+```
+
+#### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/anton-kochev/service-bus-inspector/main/install.ps1 | iex
+```
+
+### Pre-built Binaries
+
+Download pre-built binaries for your platform from the [Releases](https://github.com/anton-kochev/service-bus-inspector/releases) page:
+
+- **Linux**: x64, ARM64 (tar.gz)
+- **macOS**: x64 (Intel), ARM64 (Apple Silicon) (tar.gz)
+- **Windows**: x64, ARM64 (zip)
+
+Extract the archive and run the `service-bus-inspector` executable directly.
+
 ## Usage
 
+```bash
+service-bus-inspector --queue <queue-name> --conn "Endpoint=sb://..." --refresh-interval 5
+```
+
+Or when running from source:
 ```bash
 dotnet run -- --queue <queue-name> --conn "Endpoint=sb://..." --refresh-interval 5
 ```
@@ -48,19 +103,41 @@ Once the application is running:
 6. Click "Reset queue" twice to confirm and purge all messages from both main queue and dead-letter queue
 7. Press `Ctrl+C` to exit
 
-## Build
+## Build from Source
+
+### Prerequisites
+- .NET 9.0 SDK
+
+### Build
 
 ```bash
 dotnet build
 ```
 
-## Publish
+### Publish
 
 For native AOT compilation:
 
 ```bash
 dotnet publish -c Release
 ```
+
+The compiled binary will be in `bin/Release/net9.0/<platform>/publish/service-bus-inspector` (or `.exe` on Windows).
+
+## CI/CD
+
+The project includes a comprehensive GitHub Actions workflow that:
+
+- Builds the project on Linux, Windows, and macOS in both Debug and Release configurations
+- Publishes Native AOT binaries for 6 platforms:
+  - Linux: x64, ARM64
+  - Windows: x64, ARM64
+  - macOS: x64 (Intel), ARM64 (Apple Silicon)
+- Runs CodeQL security analysis with extended queries
+- Uploads build artifacts (90-day retention)
+- Automatically creates release archives and attaches them to GitHub releases
+
+Pre-built binaries are available in the [Releases](https://github.com/anton-kochev/service-bus-inspector/releases) section.
 
 ## Dependencies
 
