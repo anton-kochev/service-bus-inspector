@@ -68,6 +68,9 @@
 <Align Horizontal="HorizontalAlignment.Right">
     <Columns>
         <MetricsPanel Metrics="@State.Metrics"/>
+        <Markup Content="|"></Markup>
+        <Markup Content="@($"Delay {AppOptions.RefreshIntervalSeconds}s")" Foreground="@Color.Grey58"/>
+        <Markup Content="|"></Markup>
         <Markup Content="@($"{DateTime.UtcNow:HH:mm:ss} (UTC)")" Foreground="@Color.Grey58"/>
     </Columns>
 </Align>
