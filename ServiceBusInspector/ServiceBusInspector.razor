@@ -48,28 +48,17 @@
                 {
                     foreach (ServiceBusReceivedMessage message in _messagesQueue)
                     {
-                        <Panel Title="@($"Message #{message.SequenceNumber}")">
-                            <Markup Content="Subject: " Decoration="Decoration.Bold"/>
-                            <Markup Content="@(message.Subject ?? "(none)")"/>
-                            <Markup Content="Message ID: " Decoration="Decoration.Bold"/>
-                            <Markup Content="@message.MessageId"/>
-                            <Markup Content="Content Type: " Decoration="Decoration.Bold"/>
-                            <Markup Content="@(message.ContentType ?? "(none)")"/>
-                            <Markup Content="Size: " Decoration="Decoration.Bold"/>
-                            <Markup Content="@($"{message.Body.ToArray().Length} bytes")"/>
-                            <Markup Content="Enqueued Time: " Decoration="Decoration.Bold"/>
-                            <Markup Content="@message.EnqueuedTime.ToString("yyyy-MM-dd HH:mm:ss")"/>
-                            @if (message.ApplicationProperties.Count > 0)
-                            {
-                                <Markup Content="Application Properties:" Decoration="Decoration.Bold"/>
-                                foreach (var prop in message.ApplicationProperties)
-                                {
-                                    <Markup Content="@($"  {prop.Key}: {prop.Value?.ToString() ?? "null"}")"/>
-                                }
-                            }
-                            <Markup Content="Body:" Decoration="Decoration.Bold"/>
-                            <Markup Content="@GetMessageBody(message)"/>
-                        </Panel>
+                        <Columns>
+                            <Markup Content="@($"{message.EnqueuedTime:yyyy-MM-dd HH:mm:ss}")"></Markup>
+                            <Markup Content="|"></Markup>
+                            <TextButton Content="@($"{message.MessageId}")"
+                                        OnClick="@(() =>
+                                                 {
+                                                     _message = message;
+                                                     StateHasChanged();
+                                                 })"
+                                        FocusedColor="Color.CornflowerBlue"/>
+                        </Columns>
                     }
 
                     break;
@@ -102,9 +91,9 @@
                         foreach (ServiceBusReceivedMessage message in _deadLetterQueue)
                         {
                             <Columns>
-                                <Markup Content="@($"{message.EnqueuedTime}")"></Markup>
+                                <Markup Content="@($"{message.EnqueuedTime:yyyy-MM-dd HH:mm:ss}")"></Markup>
                                 <Markup Content="|"></Markup>
-                                <TextButton Content="@($"#{message.MessageId}")"
+                                <TextButton Content="@($"{message.MessageId}")"
                                             OnClick="@(() =>
                                                      {
                                                          _message = message;
@@ -140,6 +129,12 @@
     @if (_message != null)
     {
         <table class="table" data-expand="true" data-border="Rounded">
+            <thead>
+            <tr>
+                <th data-align="right">Param</th>
+                <th data-align="left">Value</th>
+            </tr>
+            </thead>
             <tbody>
             <tr>
                 <td>
