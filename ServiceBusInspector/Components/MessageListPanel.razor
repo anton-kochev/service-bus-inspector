@@ -1,0 +1,65 @@
+@using Microsoft.AspNetCore.Components
+@using Azure.Messaging.ServiceBus
+@using RazorConsole.Components
+@using Spectre.Console
+
+<Panel Title="@Title" Border="BoxBorder.Double" Expand="true">
+    @switch (Messages)
+    {
+        case { Count: > 0 }:
+            <Rows>
+                @foreach (var message in Messages)
+                {
+                    <Columns>
+                        <Markup Content="@($"{message.EnqueuedTime:yyyy-MM-dd HH:mm:ss}")" />
+                        <Markup Content="|" />
+                        <TextButton Content="@($"{message.MessageId}")"
+                                    FocusedColor="@Color.Yellow"
+                                    OnClick="@(() => OnMessageSelected.InvokeAsync(message))" />
+                    </Columns>
+                }
+            </Rows>
+            break;
+
+        case { Count: 0 }:
+            <Markup Content="No messages in queue" Foreground="@Color.Yellow" />
+            break;
+
+        default:
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <Markup Content="@($"Error: {ErrorMessage}")" Foreground="@Color.Red" />
+            }
+            else
+            {
+                <Markup Content="Click 'Peek messages' to view queue contents" Foreground="@Color.Grey58" />
+            }
+            break;
+    }
+</Panel>
+
+@code {
+    /// <summary>
+    /// The title to display in the panel header.
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The list of messages to display.
+    /// </summary>
+    [Parameter]
+    public List<ServiceBusReceivedMessage>? Messages { get; set; }
+
+    /// <summary>
+    /// Error message to display when peek fails.
+    /// </summary>
+    [Parameter]
+    public string? ErrorMessage { get; set; }
+
+    /// <summary>
+    /// Event callback invoked when a message is selected.
+    /// </summary>
+    [Parameter]
+    public EventCallback<ServiceBusReceivedMessage> OnMessageSelected { get; set; }
+}

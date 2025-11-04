@@ -6,6 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RazorConsole.Core;
 using ServiceBusInspector;
+using ServiceBusInspector.Coordination;
+using ServiceBusInspector.State;
 
 // Parse command-line arguments
 string? queueName = null;
@@ -46,8 +48,15 @@ IHostBuilder builder = Host.CreateDefaultBuilder(args)
 
         // Register the Service Bus monitor service
         services.AddSingleton(_ => new ServiceBusMonitorService(connectionString!));
+
+        // Register the state management service
+        services.AddSingleton<ServiceBusInspectorState>();
+
+        // Register the coordinator service
+        services.AddSingleton<ServiceBusInspectorCoordinator>();
     })
     .UseRazorConsole<ServiceBusInspector.ServiceBusInspector>();
+
 IHost host = builder
     .Build();
 

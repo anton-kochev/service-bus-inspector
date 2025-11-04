@@ -1,0 +1,31 @@
+@using Microsoft.AspNetCore.Components
+@using RazorConsole.Components
+@using Spectre.Console
+
+@if (!string.IsNullOrWhiteSpace(WarningMessage))
+{
+    <Align Horizontal="HorizontalAlignment.Center">
+        <Markup Content="@WarningMessage" Background="@Color.DarkRed" Foreground="@Color.White" />
+    </Align>
+}
+
+@if (!string.IsNullOrWhiteSpace(SuccessMessage))
+{
+    <Align Horizontal="HorizontalAlignment.Center">
+        <Markup Content="@SuccessMessage" Background="@Color.DarkGreen" Foreground="@Color.White" />
+    </Align>
+}
+
+@code {
+    /// <summary>
+    /// Warning message to display with red background.
+    /// </summary>
+    [Parameter]
+    public string? WarningMessage { get; set; }
+
+    /// <summary>
+    /// Success message to display with green background.
+    /// </summary>
+    [Parameter]
+    public string? SuccessMessage { get; set; }
+}

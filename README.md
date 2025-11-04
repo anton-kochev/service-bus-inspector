@@ -42,7 +42,7 @@ Once the application is running:
 4. In the dead-letter queue panel, click any message ID to view its full details in the detailed viewer
 5. Press `Ctrl+C` to exit
 
-Note: "Reset queue" and "Change queue" buttons are placeholders and not yet implemented.
+Note: "Change queue" button functionality is not yet fully implemented (requires user input for new queue name).
 
 ## Build
 
@@ -78,9 +78,12 @@ dotnet publish -c Release
 - Message body display is truncated to 500 characters to avoid overwhelming the terminal
 - Binary message bodies cannot be displayed as text
 
+### Implemented Features
+- Reset queue functionality with two-click confirmation (purges all messages from both main queue and dead-letter queue)
+
 ### Planned Features (Not Yet Implemented)
-- Reset queue functionality
-- Change queue functionality (runtime queue switching)
+- Complete change queue functionality (runtime queue switching - backend implemented, needs UI for queue name input)
+- Dead-letter message management (requeue or permanently delete individual messages)
 
 ## Architecture
 
@@ -90,16 +93,42 @@ dotnet publish -c Release
 - **Spectre.Console**: Rich terminal styling and colors
 - **PeriodicTimer**: Automatic background metric refresh at configured intervals
 
-### Component Structure
-- `ServiceBusInspector.razor`: Main UI component with split-pane layout and message viewer (ServiceBusInspector/ServiceBusInspector.razor:1)
-- `ServiceBusMonitorService.cs`: Service for retrieving queue metrics and peeking messages (ServiceBusInspector/ServiceBusMonitorService.cs:1)
-- `QueueMetrics.cs`: Data model for queue statistics (ServiceBusInspector/QueueMetrics.cs:1)
-- `AppOptions.cs`: Configuration model for command-line arguments (ServiceBusInspector/AppOptions.cs:1)
-- `Program.cs`: Application entry point with dependency injection setup (ServiceBusInspector/Program.cs:1)
+### Clean Architecture Layers
+
+The application follows a layered architecture with clear separation of concerns:
+
+#### Utilities Layer (`ServiceBusInspector/Utilities/`)
+- **MessageFormatter.cs**: Pure utility functions for message formatting and body conversion
+
+#### State Management Layer (`ServiceBusInspector/State/`)
+- **ServiceBusInspectorState.cs**: Centralized observable state with event-driven UI updates
+
+#### Presentation Layer (`ServiceBusInspector/Components/`)
+- **MessageListPanel.razor**: Reusable component for displaying main queue and dead-letter queue messages
+- **MessageDetailsTable.razor**: HTML table component showing detailed message information
+- **StatusMessageDisplay.razor**: Color-coded status message display (warnings and success messages)
+
+#### Coordination Layer (`ServiceBusInspector/Coordination/`)
+- **ServiceBusInspectorCoordinator.cs**: Orchestrates complex workflows between services and state
+
+#### Business Logic Layer (`ServiceBusInspector/`)
+- **ServiceBusMonitorService.cs**: Service for Azure Service Bus operations with background polling
+- **QueueMetrics.cs**: Immutable record for queue statistics
+- **AppOptions.cs**: Configuration model for command-line arguments
+
+#### Main Component
+- **ServiceBusInspector.razor**: Pure presentation markup (56 lines)
+- **ServiceBusInspector.razor.cs**: Code-behind with component lifecycle and event handlers
+- **Program.cs**: Application entry point with dependency injection setup
 
 ### Key Implementation Details
+- **Code-Behind Pattern**: Separation between markup (.razor) and logic (.razor.cs) following Blazor best practices
+- **Observable State**: Event-driven state management with automatic UI updates via `StateChanged` events
+- **Dependency Injection**: All components and services registered in DI container with appropriate lifetimes
+- **Component Composition**: Reusable child components with parameter passing for data and callbacks
+- **Event-Driven Polling**: Background metrics polling in service layer with event notifications
+- **Immutable Records**: QueueMetrics as record type for value-based equality and immutability
+- **Native AOT**: Enabled only in Release configuration for native compilation
 - The project uses `Microsoft.NET.Sdk.Razor` to enable Razor component compilation
 - Implicit usings are disabled - all namespaces must be explicitly declared
-- Native AOT is enabled only in Release configuration
 - Message counting is performed by iterative peeking (100 messages at a time) with loop detection
-- The UI updates automatically via `StateHasChanged()` when metrics or messages are refreshed

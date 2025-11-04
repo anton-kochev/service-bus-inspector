@@ -1,0 +1,100 @@
+@using Microsoft.AspNetCore.Components
+@using Azure.Messaging.ServiceBus
+@using global::ServiceBusInspector.Utilities
+@using RazorConsole.Components
+@using Spectre.Console
+@using Markup = RazorConsole.Components.Markup
+
+@if (Message != null)
+{
+    <table class="table" data-expand="true" data-border="Rounded">
+        <thead>
+        <tr>
+            <th data-align="right">Param</th>
+            <th data-align="left">Value</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>
+                <Markup Content="Subject" Decoration="Decoration.Bold"/>
+            </td>
+            <td>
+                <Markup Content="@(Message.Subject ?? "(none)")"/>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <Markup Content="Message ID" Decoration="Decoration.Bold"/>
+            </td>
+            <td>
+                <Markup Content="@(Message.MessageId)"/>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <Markup Content="Sequence Number" Decoration="Decoration.Bold"/>
+            </td>
+            <td>
+                <Markup Content="@(Message.SequenceNumber.ToString())"/>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <Markup Content="Content Type" Decoration="Decoration.Bold"/>
+            </td>
+            <td>
+                <Markup Content="@(Message.ContentType ?? "(none)")"/>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <Markup Content="Size" Decoration="Decoration.Bold"/>
+            </td>
+            <td>
+                <Markup Content="@(MessageFormatter.FormatSize(Message.Body.ToMemory().Length))"/>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <Markup Content="Enqueued Time" Decoration="Decoration.Bold"/>
+            </td>
+            <td>
+                <Markup Content="@(MessageFormatter.FormatTimestamp(Message.EnqueuedTime))"/>
+            </td>
+        </tr>
+        @if (Message.ApplicationProperties?.Count > 0)
+        {
+            <tr>
+                <td>
+                    <Markup Content="Application Properties" Decoration="Decoration.Bold"/>
+                </td>
+                <td>
+                    <Rows>
+                        @foreach (KeyValuePair<string, object> prop in Message.ApplicationProperties)
+                        {
+                            <Markup Content="@($"{prop.Key}: {prop.Value}")" />
+                        }
+                    </Rows>
+                </td>
+            </tr>
+        }
+        <tr>
+            <td>
+                <Markup Content="Body" Decoration="Decoration.Bold"/>
+            </td>
+            <td>
+                <Markup Content="@(MessageFormatter.FormatBody(Message.Body))"/>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    /// <summary>
+    /// The message to display details for.
+    /// </summary>
+    [Parameter]
+    public ServiceBusReceivedMessage? Message { get; set; }
+}

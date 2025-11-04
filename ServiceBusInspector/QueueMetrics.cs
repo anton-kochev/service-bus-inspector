@@ -5,37 +5,37 @@ namespace ServiceBusInspector;
 /// <summary>
 /// Represents the current metrics for a Service Bus queue.
 /// </summary>
-public sealed class QueueMetrics
+public sealed record QueueMetrics
 {
     /// <summary>
-    /// Gets or sets the number of active messages in the queue.
+    /// Gets the number of active messages in the queue.
     /// </summary>
-    public long ActiveMessageCount { get; set; }
+    public required long ActiveMessageCount { get; init; }
 
     /// <summary>
-    /// Gets or sets the number of messages in the dead-letter queue.
+    /// Gets the number of messages in the dead-letter queue.
     /// </summary>
-    public long DeadLetterMessageCount { get; set; }
+    public required long DeadLetterMessageCount { get; init; }
 
     /// <summary>
-    /// Gets or sets the number of scheduled messages.
+    /// Gets the number of scheduled messages.
     /// </summary>
-    public long ScheduledMessageCount { get; set; }
+    public required long ScheduledMessageCount { get; init; }
 
     /// <summary>
-    /// Gets or sets the size of the queue in bytes.
+    /// Gets the size of the queue in bytes.
     /// </summary>
-    public long SizeInBytes { get; set; }
+    public required long SizeInBytes { get; init; }
 
     /// <summary>
-    /// Gets or sets the timestamp when these metrics were retrieved.
+    /// Gets the timestamp when these metrics were retrieved.
     /// </summary>
-    public DateTime LastUpdated { get; set; }
+    public required DateTime LastUpdated { get; init; }
 
     /// <summary>
-    /// Gets or sets any error message if metrics retrieval failed.
+    /// Gets any error message if metrics retrieval failed.
     /// </summary>
-    public string? Error { get; set; }
+    public string? Error { get; init; }
 
     /// <summary>
     /// Gets a value indicating whether the metrics retrieval was successful.

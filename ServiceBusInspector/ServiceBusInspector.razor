@@ -1,28 +1,19 @@
+@using global::ServiceBusInspector.Components
 @using RazorConsole.Components
 @using Spectre.Console
-@using Microsoft.AspNetCore.Components
-@using System.Threading
-@using System.Collections.Generic
-@using System.Text
-@using Azure.Messaging.ServiceBus
 @using Align = RazorConsole.Components.Align
 @using Markup = RazorConsole.Components.Markup
-@inject AppOptions AppOptions
-@inject ServiceBusMonitorService MonitorService
-@implements IAsyncDisposable
 
 <Align Horizontal="HorizontalAlignment.Center">
     <Markdown Content="SERVICE BUS INSPECTOR"></Markdown>
 </Align>
 
 <Panel>
-
     <Align Horizontal="@HorizontalAlignment.Center">
         <Markup Content="Tab to change focus • Enter to submit • Ctrl+C to exit" Foreground="@Color.Grey58"/>
     </Align>
 
     <!-- Navigation and Actions -->
-
     <Align Horizontal="HorizontalAlignment.Center">
         <Panel Border="BoxBorder.Rounded">
             <TextButton Content="Peek messages" OnClick="@OnPeekMessages"
@@ -36,323 +27,29 @@
         </Panel>
     </Align>
 
-    <!-- End of Navigation and Actions -->
-
     <!-- Message Queue Display -->
-
     <Grid Expand="true" Columns="2">
-        <Panel Title="@($"{AppOptions.QueueName}")" Border="BoxBorder.Double" Expand="true">
-            @switch (_messagesQueue)
-            {
-                case { Count: > 0 }:
-                {
-                    foreach (ServiceBusReceivedMessage message in _messagesQueue)
-                    {
-                        <Columns>
-                            <Markup Content="@($"{message.EnqueuedTime:yyyy-MM-dd HH:mm:ss}")"></Markup>
-                            <Markup Content="|"></Markup>
-                            <TextButton Content="@($"{message.MessageId}")"
-                                        OnClick="@(() =>
-                                                 {
-                                                     _message = message;
-                                                     StateHasChanged();
-                                                 })"
-                                        FocusedColor="Color.CornflowerBlue"/>
-                        </Columns>
-                    }
+        <MessageListPanel Title="@($"{AppOptions.QueueName}")"
+                          Messages="@State.MainQueueMessages"
+                          ErrorMessage="@State.PeekError"
+                          OnMessageSelected="@OnMessageSelected"/>
 
-                    break;
-                }
-                case { Count: 0 }:
-                    <Markup Content="No messages in queue" Foreground="Color.Yellow"/>
-                    break;
-                default:
-                {
-                    if (!string.IsNullOrEmpty(_peekError))
-                    {
-                        <Markup Content="@($"Error: {_peekError}")" Foreground="Color.Red"/>
-                    }
-                    else
-                    {
-                        <Markup Content="Click 'Peek messages' to view queue contents" Foreground="Color.Grey58"/>
-                    }
-
-                    break;
-                }
-            }
-        </Panel>
-
-        <Panel Title="Dead Letter Queue" Border="BoxBorder.Double" Expand="true">
-            <Rows>
-                @switch (_deadLetterQueue)
-                {
-                    case { Count: > 0 }:
-                    {
-                        foreach (ServiceBusReceivedMessage message in _deadLetterQueue)
-                        {
-                            <Columns>
-                                <Markup Content="@($"{message.EnqueuedTime:yyyy-MM-dd HH:mm:ss}")"></Markup>
-                                <Markup Content="|"></Markup>
-                                <TextButton Content="@($"{message.MessageId}")"
-                                            OnClick="@(() =>
-                                                     {
-                                                         _message = message;
-                                                         StateHasChanged();
-                                                     })"
-                                            FocusedColor="Color.CornflowerBlue"/>
-                            </Columns>
-                        }
-
-                        break;
-                    }
-                    case { Count: 0 }:
-                        <Markup Content="No messages in dead letter queue" Foreground="Color.Yellow"/>
-                        break;
-                    default:
-                    {
-                        if (!string.IsNullOrEmpty(_peekError))
-                        {
-                            <Markup Content="@($"Error: {_peekError}")" Foreground="Color.Red"/>
-                        }
-                        else
-                        {
-                            <Markup Content="Click 'Peek messages' to view queue contents" Foreground="Color.Grey58"/>
-                        }
-
-                        break;
-                    }
-                }
-            </Rows>
-        </Panel>
+        <MessageListPanel Title="Dead Letter Queue"
+                          Messages="@State.DeadLetterQueueMessages"
+                          ErrorMessage="@State.PeekError"
+                          OnMessageSelected="@OnMessageSelected"/>
     </Grid>
 
-    @if (_message != null)
-    {
-        <table class="table" data-expand="true" data-border="Rounded">
-            <thead>
-            <tr>
-                <th data-align="right">Param</th>
-                <th data-align="left">Value</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr>
-                <td>
-                    <Markup Content="Subject" Decoration="Decoration.Bold"/>
-                </td>
-                <td>
-                    <Markup Content="@(_message.Subject ?? "(none)")"/>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <Markup Content="Message ID" Decoration="Decoration.Bold"/>
-                </td>
-                <td>
-                    <Markup Content="@_message.MessageId"/>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <Markup Content="Sequence Number" Decoration="Decoration.Bold"/>
-                </td>
-                <td>
-                    <Markup Content="@_message.SequenceNumber.ToString()"/>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <Markup Content="Content Type" Decoration="Decoration.Bold"/>
-                </td>
-                <td>
-                    <Markup Content="@(_message.ContentType ?? "(none)")"/>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <Markup Content="Size" Decoration="Decoration.Bold"/>
-                </td>
-                <td>
-                    <Markup Content="@($"{_message.Body.ToArray().Length} bytes")"/>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <Markup Content="Enqueued Time" Decoration="Decoration.Bold"/>
-                </td>
-                <td>
-                    <Markup Content="@_message.EnqueuedTime.ToString("yyyy-MM-dd HH:mm:ss")"/>
-                </td>
-            </tr>
-            @if (_message.ApplicationProperties.Count > 0)
-            {
-                <tr>
-                    <td>
-                        <Markup Content="Application Properties" Decoration="Decoration.Bold"/>
-                    </td>
-                    <td>
-                        <Rows>
-                            @foreach (KeyValuePair<string, object> prop in _message.ApplicationProperties)
-                            {
-                                <Markup Content="@($"{prop.Key}: {prop.Value?.ToString() ?? "null"}")"/>
-                            }
-                        </Rows>
-                    </td>
-                </tr>
-            }
-            <tr>
-                <td>
-                    <Markup Content="Body" Decoration="Decoration.Bold"/>
-                </td>
-                <td>
-                    <Markup Content="@GetMessageBody(_message)"/>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-    }
+    <!-- Message Details -->
+    <MessageDetailsTable Message="@State.SelectedMessage"/>
 
-    <!-- End of Message Queue Display -->
-
+    <!-- Footer -->
 </Panel>
 
+<!-- Status Messages -->
+<StatusMessageDisplay WarningMessage="@State.WarningMessage"
+                      SuccessMessage="@State.SuccessMessage"/>
+
 <Align Horizontal="HorizontalAlignment.Right">
-    <Markup Content="@(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"))" Foreground="Color.Grey58"/>
+    <Markup Content="@($"Current Time (UTC): {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}")" Foreground="@Color.Grey58"/>
 </Align>
-
-@code {
-    private QueueMetrics? _metrics;
-    private PeriodicTimer? _timer;
-    private Task? _pollingTask;
-    private CancellationTokenSource? _cts;
-    private ServiceBusReceivedMessage? _message;
-    private IReadOnlyList<ServiceBusReceivedMessage>? _messagesQueue;
-    private IReadOnlyList<ServiceBusReceivedMessage>? _deadLetterQueue;
-    private string? _peekError;
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (string.IsNullOrEmpty(AppOptions.QueueName) || string.IsNullOrEmpty(AppOptions.ConnectionString))
-        {
-            _metrics = new QueueMetrics
-            {
-                Error = "Queue name or connection string not provided",
-                LastUpdated = DateTime.UtcNow
-            };
-            return;
-        }
-
-        _cts = new CancellationTokenSource();
-        _timer = new PeriodicTimer(TimeSpan.FromSeconds(AppOptions.RefreshIntervalSeconds));
-        _pollingTask = PollMetricsAsync(_cts.Token);
-
-        await base.OnInitializedAsync();
-    }
-
-    private async Task PollMetricsAsync(CancellationToken cancellationToken)
-    {
-        // Fetch immediately on startup
-        await FetchMetricsAsync(cancellationToken);
-
-        // Then poll at the configured interval
-        while (await _timer!.WaitForNextTickAsync(cancellationToken))
-        {
-            await FetchMetricsAsync(cancellationToken);
-        }
-    }
-
-    private async Task FetchMetricsAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            _metrics = await MonitorService.GetQueueMetricsAsync(AppOptions.QueueName!, cancellationToken);
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            _metrics = new QueueMetrics
-            {
-                Error = $"Failed to fetch metrics: {ex.Message}",
-                LastUpdated = DateTime.UtcNow
-            };
-            StateHasChanged();
-        }
-    }
-
-    private async void OnPeekMessages()
-    {
-        if (string.IsNullOrEmpty(AppOptions.QueueName))
-        {
-            _peekError = "Queue name not configured";
-            StateHasChanged();
-            return;
-        }
-
-        try
-        {
-            _peekError = null;
-            (_messagesQueue, _deadLetterQueue) = await MonitorService.PeekMessagesAsync(
-                AppOptions.QueueName!,
-                maxMessages: 10,
-                cancellationToken: _cts?.Token ?? CancellationToken.None);
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            _peekError = $"{ex.GetType().Name}: {ex.Message}";
-            _messagesQueue = null;
-            StateHasChanged();
-        }
-    }
-
-    private static string GetMessageBody(ServiceBusReceivedMessage message)
-    {
-        try
-        {
-            string body = Encoding.UTF8.GetString(message.Body);
-            // Limit display to the first 500 characters to avoid overwhelming the terminal
-            if (body.Length > 500)
-            {
-                return body[..500] + " ...[truncated]";
-            }
-
-            return body;
-        }
-        catch
-        {
-            return "[Binary data - cannot display as text]";
-        }
-    }
-
-    private void OnResetQueue()
-    {
-        // TODO: Implement reset queue functionality
-    }
-
-    private void OnChangeQueue()
-    {
-        // TODO: Implement change queue functionality
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        await _cts?.CancelAsync()!;
-        _timer?.Dispose();
-
-        if (_pollingTask != null)
-        {
-            try
-            {
-                await _pollingTask;
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected when cancelling
-            }
-        }
-
-        _cts?.Dispose();
-        MonitorService?.Dispose();
-    }
-
-}
