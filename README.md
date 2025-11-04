@@ -1,5 +1,7 @@
 # Service Bus Inspector
 
+[![CI](https://github.com/anton-kochev/service-bus-inspector/actions/workflows/ci.yml/badge.svg)](https://github.com/anton-kochev/service-bus-inspector/actions/workflows/ci.yml)
+
 A .NET 9.0 console application for inspecting and monitoring Azure Service Bus queues, built with [RazorConsole](https://github.com/LittleLittleCloud/RazorConsole).
 
 ## Features
