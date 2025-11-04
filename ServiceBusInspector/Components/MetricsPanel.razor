@@ -1,0 +1,54 @@
+@using RazorConsole.Components
+@using Spectre.Console
+
+<Panel Border="BoxBorder.None">
+    @if (Metrics != null)
+    {
+        @if (!Metrics.IsHealthy)
+        {
+            <Markup Content="@($"Error: {Metrics.Error}")"/>
+        }
+        else
+        {
+            <Columns>
+                <Markup Content="Real-Time Queue Metrics"/>
+                <Markup Content="@($"Main {Metrics.ActiveMessageCount}")"
+                        Foreground="@GetForegroundColor(Metrics.ActiveMessageCount)"
+                        Background="@GetBackgroundColor(Metrics.ActiveMessageCount)"/>
+                <Markup Content="@($"DLQ {Metrics.DeadLetterMessageCount}")"
+                        Foreground="GetForegroundColor(Metrics.DeadLetterMessageCount)"
+                        Background="@GetBackgroundColor(Metrics.DeadLetterMessageCount)"/>
+            </Columns>
+        }
+    }
+    else
+    {
+        <Markup Content="[grey]Waiting for metrics...[/]"/>
+    }
+</Panel>
+
+@code {
+    [Parameter] public QueueMetrics? Metrics { get; set; }
+
+    private static Color GetForegroundColor(long count)
+    {
+        return GetCountColor(count).Item1;
+    }
+
+    private static Color GetBackgroundColor(long count)
+    {
+        return GetCountColor(count).Item2;
+    }
+
+    private static (Color, Color) GetCountColor(long count)
+    {
+        return count switch
+        {
+            0 => (Color.LightGoldenrod2, Color.DarkGreen),
+            <= 10 => (Color.Black, Color.LightGoldenrod2),
+            <= 100 => (Color.White, Color.Orange1),
+            _ => (Color.White, Color.DarkRed)
+        };
+    }
+
+}

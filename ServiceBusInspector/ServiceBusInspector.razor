@@ -66,5 +66,8 @@
                       SuccessMessage="@State.SuccessMessage"/>
 
 <Align Horizontal="HorizontalAlignment.Right">
-    <Markup Content="@($"Current Time (UTC): {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}")" Foreground="@Color.Grey58"/>
+    <Columns>
+        <MetricsPanel Metrics="@State.Metrics"/>
+        <Markup Content="@($"{DateTime.UtcNow:HH:mm:ss}")" Foreground="@Color.Grey58"/>
+    </Columns>
 </Align>

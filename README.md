@@ -14,6 +14,8 @@ A .NET 9.0 console application for inspecting and monitoring Azure Service Bus q
 - **Real-time Queue Metrics**: Automatic polling of queue statistics with configurable refresh intervals
   - Active message count (via peek-based counting)
   - Dead-letter message count (via peek-based counting)
+  - Color-coded health indicators (green=0, yellow=1-10, orange=11-100, red=100+)
+  - Compact display panel showing "Main" and "DLQ" counts side-by-side
 - **Interactive Terminal UI**:
   - Rich formatting powered by Spectre.Console
   - Tab-based navigation between controls
@@ -108,6 +110,7 @@ The application follows a layered architecture with clear separation of concerns
 - **MessageDetailsTable.razor**: HTML table component showing detailed message information
 - **StatusMessageDisplay.razor**: Color-coded status message display (warnings and success messages)
 - **ChangeQueueInput.razor**: Queue name input form with validation and cancel button
+- **MetricsPanel.razor**: Real-time metrics display with color-coded message counts
 
 #### Coordination Layer (`ServiceBusInspector/Coordination/`)
 - **ServiceBusInspectorCoordinator.cs**: Orchestrates complex workflows between services and state
