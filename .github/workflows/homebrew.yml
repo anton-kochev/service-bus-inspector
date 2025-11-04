@@ -1,0 +1,113 @@
+name: Update Homebrew Formula
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  update-homebrew-formula:
+    name: Update Homebrew Formula
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout tap repository
+        uses: actions/checkout@v4
+        with:
+          repository: anton-kochev/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_PAT }}
+          path: homebrew-tap
+
+      - name: Get version to update
+        id: get_version
+        run: |
+          # Extract version from release tag
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "Using version from release: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if update needed
+        id: check_update
+        run: |
+          CURRENT_VERSION=$(grep 'version' homebrew-tap/Formula/service-bus-inspector.rb | head -1 | sed -E 's/.*"(.*)".*/\1/')
+          NEW_VERSION="${{ steps.get_version.outputs.version }}"
+          echo "Current version: $CURRENT_VERSION"
+          echo "New version: $NEW_VERSION"
+
+          if [ "$CURRENT_VERSION" = "$NEW_VERSION" ]; then
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+            echo "Formula is already up to date"
+          else
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+            echo "Update needed"
+          fi
+
+      - name: Download and calculate checksums
+        if: steps.check_update.outputs.needs_update == 'true'
+        id: checksums
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+
+          # Download macOS ARM64 binary
+          curl -L "https://github.com/anton-kochev/service-bus-inspector/releases/download/v${VERSION}/ServiceBusInspector-osx-arm64.tar.gz" -o /tmp/service-bus-inspector-osx-arm64.tar.gz
+          OSX_ARM_SHA=$(shasum -a 256 /tmp/service-bus-inspector-osx-arm64.tar.gz | awk '{print $1}')
+          echo "osx_arm_sha=$OSX_ARM_SHA" >> $GITHUB_OUTPUT
+
+          # Download macOS Intel binary
+          curl -L "https://github.com/anton-kochev/service-bus-inspector/releases/download/v${VERSION}/ServiceBusInspector-osx-x64.tar.gz" -o /tmp/service-bus-inspector-osx-x64.tar.gz
+          OSX_X64_SHA=$(shasum -a 256 /tmp/service-bus-inspector-osx-x64.tar.gz | awk '{print $1}')
+          echo "osx_x64_sha=$OSX_X64_SHA" >> $GITHUB_OUTPUT
+
+          # Download Linux binary
+          curl -L "https://github.com/anton-kochev/service-bus-inspector/releases/download/v${VERSION}/ServiceBusInspector-linux-x64.tar.gz" -o /tmp/service-bus-inspector-linux-x64.tar.gz
+          LINUX_X64_SHA=$(shasum -a 256 /tmp/service-bus-inspector-linux-x64.tar.gz | awk '{print $1}')
+          echo "linux_x64_sha=$LINUX_X64_SHA" >> $GITHUB_OUTPUT
+
+          echo "Checksums calculated:"
+          echo "macOS ARM64: $OSX_ARM_SHA"
+          echo "macOS Intel: $OSX_X64_SHA"
+          echo "Linux x64: $LINUX_X64_SHA"
+
+      - name: Update formula
+        if: steps.check_update.outputs.needs_update == 'true'
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          OSX_ARM_SHA="${{ steps.checksums.outputs.osx_arm_sha }}"
+          OSX_X64_SHA="${{ steps.checksums.outputs.osx_x64_sha }}"
+          LINUX_X64_SHA="${{ steps.checksums.outputs.linux_x64_sha }}"
+
+          # Update version
+          sed -i "s/version \".*\"/version \"$VERSION\"/" homebrew-tap/Formula/service-bus-inspector.rb
+
+          # Update macOS ARM64 URL and SHA
+          sed -i "s|download/v[0-9.]\+/ServiceBusInspector-osx-arm64.tar.gz|download/v$VERSION/ServiceBusInspector-osx-arm64.tar.gz|" homebrew-tap/Formula/service-bus-inspector.rb
+          sed -i "/ServiceBusInspector-osx-arm64.tar.gz/,/sha256/ s/sha256 \".*\"/sha256 \"$OSX_ARM_SHA\"/" homebrew-tap/Formula/service-bus-inspector.rb
+
+          # Update macOS Intel URL and SHA
+          sed -i "s|download/v[0-9.]\+/ServiceBusInspector-osx-x64.tar.gz|download/v$VERSION/ServiceBusInspector-osx-x64.tar.gz|" homebrew-tap/Formula/service-bus-inspector.rb
+          sed -i "/ServiceBusInspector-osx-x64.tar.gz/,/sha256/ s/sha256 \".*\"/sha256 \"$OSX_X64_SHA\"/" homebrew-tap/Formula/service-bus-inspector.rb
+
+          # Update Linux URL and SHA
+          sed -i "s|download/v[0-9.]\+/ServiceBusInspector-linux-x64.tar.gz|download/v$VERSION/ServiceBusInspector-linux-x64.tar.gz|" homebrew-tap/Formula/service-bus-inspector.rb
+          sed -i "/ServiceBusInspector-linux-x64.tar.gz/,/sha256/ s/sha256 \".*\"/sha256 \"$LINUX_X64_SHA\"/" homebrew-tap/Formula/service-bus-inspector.rb
+
+      - name: Commit and push changes
+        if: steps.check_update.outputs.needs_update == 'true'
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/service-bus-inspector.rb
+          git commit -m "Update service-bus-inspector to $VERSION"
+          git push
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.check_update.outputs.needs_update }}" = "true" ]; then
+            echo "✅ Formula updated to version ${{ steps.get_version.outputs.version }}"
+          else
+            echo "ℹ️ No update needed - formula is already at the latest version"
+          fi
