@@ -252,17 +252,21 @@ public sealed class ServiceBusMonitorService : IDisposable
         _pollingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _pollingTimer = new PeriodicTimer(interval);
 
+        // Capture the timer locally to avoid race condition with disposal
+        var timer = _pollingTimer;
+        var cts = _pollingCts;
+
         _pollingTask = Task.Run(async () =>
         {
             // Fetch metrics immediately on startup
-            await FetchAndNotifyMetricsAsync(_pollingCts.Token);
+            await FetchAndNotifyMetricsAsync(cts.Token);
 
             // Then continue polling at intervals
-            while (await _pollingTimer.WaitForNextTickAsync(_pollingCts.Token))
+            while (await timer.WaitForNextTickAsync(cts.Token))
             {
-                await FetchAndNotifyMetricsAsync(_pollingCts.Token);
+                await FetchAndNotifyMetricsAsync(cts.Token);
             }
-        }, _pollingCts.Token);
+        }, cts.Token);
     }
 
     /// <summary>
@@ -317,17 +321,23 @@ public sealed class ServiceBusMonitorService : IDisposable
 
         try
         {
+            // GetQueueMetricsAsync handles its own exceptions and sets the Error property
             QueueMetrics metrics = await GetQueueMetricsAsync(_currentQueueName, cancellationToken);
-            MetricsUpdated?.Invoke(this, metrics);
+
+            // Protect against exceptions from event subscribers
+            try
+            {
+                MetricsUpdated?.Invoke(this, metrics);
+            }
+            catch (Exception)
+            {
+                // Suppress exceptions from event subscribers to prevent polling loop crash
+                // Subscriber code should handle its own errors
+            }
         }
         catch (OperationCanceledException)
         {
-            // Ignore cancellation
-        }
-        catch
-        {
-            // Suppress errors during polling to prevent crash
-            // Errors are captured in the metrics object itself
+            // Ignore cancellation - this is expected when stopping polling
         }
     }
 
