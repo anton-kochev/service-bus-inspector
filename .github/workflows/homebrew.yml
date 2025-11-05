@@ -1,9 +1,8 @@
 name: Homebrew
 
 on:
-  workflow_run:
-    workflows: ["Release"]
-    types: [completed]
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -12,22 +11,15 @@ jobs:
   update-homebrew-formula:
     name: Update Homebrew Formula
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Get version from tag
         id: get_version
         run: |
-          # The Release workflow was triggered by a tag push
-          # Extract the tag name from the head_branch
-          TAG_NAME="${{ github.event.workflow_run.head_branch }}"
-
-          # Remove 'v' prefix if present
-          VERSION="${TAG_NAME#v}"
-
+          # Extract version from release tag (remove 'v' prefix)
+          VERSION="${GITHUB_REF#refs/tags/v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Updating formula for version: $VERSION"
-          echo "Tag: $TAG_NAME"
 
       - name: Checkout tap repository
         uses: actions/checkout@v4

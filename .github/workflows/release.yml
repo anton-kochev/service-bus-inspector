@@ -140,6 +140,8 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
+        tag_name: ${{ github.ref_name }}
+        name: ${{ github.ref_name }}
         files: |
           artifacts/ServiceBusInspector-win-x64.zip
           artifacts/ServiceBusInspector-win-arm64.zip
@@ -150,5 +152,4 @@ jobs:
         draft: false
         prerelease: false
         generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.HOMEBREW_TAP_PAT }}
