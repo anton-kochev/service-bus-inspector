@@ -152,3 +152,32 @@ jobs:
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  trigger-homebrew:
+    name: Trigger Homebrew Update
+    needs: [ create-release ]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Extract version from tag
+      id: get_version
+      run: |
+        VERSION="${GITHUB_REF#refs/tags/v}"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Triggering Homebrew update for version: $VERSION"
+
+    - name: Trigger Homebrew workflow
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          await github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'homebrew.yml',
+            ref: 'main',
+            inputs: {
+              version: '${{ steps.get_version.outputs.version }}'
+            }
+          })
+          console.log('Homebrew workflow triggered successfully')

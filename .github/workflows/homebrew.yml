@@ -1,10 +1,12 @@
 name: Homebrew
 
 on:
-  workflow_run:
-    workflows: ["Release"]
-    types: [completed]
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to update (without v prefix, e.g., 1.0.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -13,14 +15,12 @@ jobs:
   update-homebrew-formula:
     name: Update Homebrew Formula
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - name: Get version from tag
+      - name: Set version
         id: get_version
         run: |
-          # Extract version from the tag that triggered the Release workflow
-          VERSION=$(echo "${{ github.event.workflow_run.head_branch }}" | sed 's/^v//')
+          VERSION="${{ github.event.inputs.version }}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Updating formula for version: $VERSION"
 
