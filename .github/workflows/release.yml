@@ -1,11 +1,9 @@
-name: CI
+name: Release
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+    tags:
+      - 'v*.*.*'
 
 env:
   DOTNET_VERSION: '9.0.x'
@@ -13,7 +11,7 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 permissions:
-  contents: read
+  contents: write
   security-events: write
   actions: read
 
@@ -61,9 +59,6 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore ServiceBusInspector/ServiceBusInspector.sln
 
-    - name: Build (Debug)
-      run: dotnet build ServiceBusInspector/ServiceBusInspector.sln --configuration Debug --no-restore
-
     - name: Build (Release)
       run: dotnet build ServiceBusInspector/ServiceBusInspector.sln --configuration Release --no-restore
 
@@ -107,3 +102,53 @@ jobs:
       uses: github/codeql-action/analyze@v3
       with:
         category: "/language:csharp"
+
+  create-release:
+    name: Create GitHub Release
+    needs: [ build, security ]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+
+    - name: Create release archives
+      run: |
+        cd artifacts
+        # Create zip archives for Windows (x64 and ARM64)
+        cd ServiceBusInspector-win-x64
+        zip -r ../ServiceBusInspector-win-x64.zip .
+        cd ..
+        cd ServiceBusInspector-win-arm64
+        zip -r ../ServiceBusInspector-win-arm64.zip .
+        cd ..
+        # Create tar.gz archive for Linux (x64 only)
+        tar -czf ServiceBusInspector-linux-x64.tar.gz -C ServiceBusInspector-linux-x64 .
+        # Create tar.gz archives for macOS (x64 and ARM64)
+        tar -czf ServiceBusInspector-osx-x64.tar.gz -C ServiceBusInspector-osx-x64 .
+        tar -czf ServiceBusInspector-osx-arm64.tar.gz -C ServiceBusInspector-osx-arm64 .
+
+    - name: Extract version from tag
+      id: get_version
+      run: |
+        VERSION="${GITHUB_REF#refs/tags/v}"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Release version: $VERSION"
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          artifacts/ServiceBusInspector-win-x64.zip
+          artifacts/ServiceBusInspector-win-arm64.zip
+          artifacts/ServiceBusInspector-linux-x64.tar.gz
+          artifacts/ServiceBusInspector-osx-x64.tar.gz
+          artifacts/ServiceBusInspector-osx-arm64.tar.gz
+        fail_on_unmatched_files: true
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
