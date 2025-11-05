@@ -2,7 +2,7 @@ name: Homebrew
 
 on:
   workflow_run:
-    workflows: ["Release"]
+    workflows: ["release"]
     types: [completed]
     branches: [main]
 
