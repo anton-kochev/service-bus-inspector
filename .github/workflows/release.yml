@@ -62,8 +62,8 @@ jobs:
     - name: Build (Release)
       run: dotnet build ServiceBusInspector/ServiceBusInspector.sln --configuration Release --no-restore
 
-    - name: Publish Native AOT
-      run: dotnet publish ServiceBusInspector/ServiceBusInspector.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained --output ./publish -p:PublishAot=true
+    - name: Publish Single-File
+      run: dotnet publish ServiceBusInspector/ServiceBusInspector.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained --output ./publish
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4

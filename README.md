@@ -23,7 +23,7 @@ A .NET 9.0 console application for inspecting and monitoring Azure Service Bus q
   - Tab-based navigation between controls
   - Clickable message selection in dead-letter queue
   - Split-pane view for main queue and dead-letter queue
-- **Native AOT Support**: Configured for native compilation in Release mode for fast startup and low memory footprint
+- **Single-File Deployment**: Self-contained single-file executable for easy distribution and deployment
 
 ## Installation
 
@@ -116,7 +116,7 @@ dotnet build
 
 ### Publish
 
-For native AOT compilation:
+For single-file self-contained deployment:
 
 ```bash
 dotnet publish -c Release
@@ -124,12 +124,14 @@ dotnet publish -c Release
 
 The compiled binary will be in `bin/Release/net9.0/<platform>/publish/service-bus-inspector` (or `.exe` on Windows).
 
+Note: Binary size is approximately 70-80 MB due to self-contained deployment (includes .NET runtime).
+
 ## CI/CD
 
 The project includes a comprehensive GitHub Actions workflow that:
 
 - Builds the project on Linux, Windows, and macOS in both Debug and Release configurations
-- Publishes Native AOT binaries for 5 platforms:
+- Publishes self-contained single-file binaries for 5 platforms:
   - Linux: x64
   - Windows: x64, ARM64
   - macOS: x64 (Intel), ARM64 (Apple Silicon)
@@ -210,8 +212,12 @@ The application follows a layered architecture with clear separation of concerns
 - **Dependency Injection**: All components and services registered in DI container with appropriate lifetimes
 - **Component Composition**: Reusable child components with parameter passing for data and callbacks
 - **Event-Driven Polling**: Background metrics polling in service layer with event notifications
-- **Immutable Records**: QueueMetrics as record type for value-based equality and immutability
-- **Native AOT**: Enabled only in Release configuration for native compilation
+- **Immutable Configuration**: AppOptions as immutable record to prevent runtime mutations
+- **Thread-Safe State**: Runtime state management separated from startup configuration
+- **Single-File Deployment**: Self-contained executable with embedded .NET runtime
 - The project uses `Microsoft.NET.Sdk.Razor` to enable Razor component compilation
 - Implicit usings are disabled - all namespaces must be explicitly declared
 - Message counting is performed by iterative peeking (100 messages at a time) with loop detection
+
+### Why Not Native AOT?
+The RazorConsole library uses reflection-based component activation which is incompatible with .NET Native AOT compilation. While Native AOT offers smaller binaries and faster startup, the application uses single-file self-contained deployment instead to ensure compatibility with RazorConsole. This results in larger binaries (~70-80 MB) but guarantees reliable operation across all platforms.

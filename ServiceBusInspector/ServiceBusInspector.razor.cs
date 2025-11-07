@@ -19,104 +19,51 @@ public sealed partial class ServiceBusInspector : IAsyncDisposable
     private bool _showingQueueInput;
 
     /// <summary>
-    /// Parameterless constructor required for RazorConsole component activation.
-    /// Dependencies are injected via properties after instantiation.
-    /// </summary>
-    public ServiceBusInspector()
-    {
-    }
-
-    // Native AOT Compatibility Note:
-    // We cannot use 'required' on injected properties because Native AOT's component
-    // activator treats them as constructor parameters, causing instantiation failures.
-    // Instead, we use nullable properties with runtime validation in OnInitializedAsync.
-
-    /// <summary>
     /// Application configuration options injected by the DI container.
-    /// Validated for non-null during component initialization.
     /// </summary>
     [Inject]
-    public AppOptions? AppOptions { get; set; }
+    public required AppOptions AppOptions { get; set; }
 
     /// <summary>
     /// Service Bus monitoring service injected by the DI container.
-    /// Validated for non-null during component initialization.
     /// </summary>
     [Inject]
-    public ServiceBusMonitorService? MonitorService { get; set; }
+    public required ServiceBusMonitorService MonitorService { get; set; }
 
     /// <summary>
     /// Application state service injected by the DI container.
-    /// Validated for non-null during component initialization.
     /// </summary>
     [Inject]
-    public ServiceBusInspectorState? State { get; set; }
+    public required ServiceBusInspectorState State { get; set; }
 
     /// <summary>
     /// Coordinator service injected by the DI container.
-    /// Validated for non-null during component initialization.
     /// </summary>
     [Inject]
-    public ServiceBusInspectorCoordinator? Coordinator { get; set; }
-
-    // Non-nullable accessors for use after initialization validation
-    private AppOptions App => AppOptions!;
-    private ServiceBusMonitorService Monitor => MonitorService!;
-    private ServiceBusInspectorState StateValue => State!;
-    private ServiceBusInspectorCoordinator Coord => Coordinator!;
+    public required ServiceBusInspectorCoordinator Coordinator { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        // Ensure dependencies are injected
-        ValidateDependencies();
-
-        // Validate configuration
-        if (string.IsNullOrEmpty(App.QueueName) || string.IsNullOrEmpty(App.ConnectionString))
-        {
-            StateValue.Metrics = new QueueMetrics
-            {
-                ActiveMessageCount = 0,
-                DeadLetterMessageCount = 0,
-                ScheduledMessageCount = 0,
-                SizeInBytes = 0,
-                Error = "Queue name or connection string not provided",
-                LastUpdated = DateTime.UtcNow
-            };
-            return;
-        }
-
         // Subscribe to state changes for UI updates
-        StateValue.StateChanged += OnStateChanged;
+        State.StateChanged += OnStateChanged;
 
         // Subscribe to metrics updates from the monitor service
-        Monitor.MetricsUpdated += OnMetricsUpdated;
+        MonitorService.MetricsUpdated += OnMetricsUpdated;
 
         // Initialize cancellation token
         _cts = new CancellationTokenSource();
 
-        // Start polling for metrics
-        await Monitor.StartPollingAsync(
-            App.QueueName!,
-            TimeSpan.FromSeconds(App.RefreshIntervalSeconds),
-            _cts.Token);
+        // Only start polling if queue name is already set
+        // Otherwise, user will set it via "Change queue" UI
+        if (!string.IsNullOrEmpty(State.CurrentQueueName))
+        {
+            await MonitorService.StartPollingAsync(
+                State.CurrentQueueName,
+                TimeSpan.FromSeconds(AppOptions.RefreshIntervalSeconds),
+                _cts.Token);
+        }
 
         await base.OnInitializedAsync();
-    }
-
-    private void ValidateDependencies()
-    {
-        if (AppOptions == null || MonitorService == null || State == null || Coordinator == null)
-        {
-            var missing = new System.Collections.Generic.List<string>();
-            if (AppOptions == null) missing.Add(nameof(AppOptions));
-            if (MonitorService == null) missing.Add(nameof(ServiceBusMonitorService));
-            if (State == null) missing.Add(nameof(ServiceBusInspectorState));
-            if (Coordinator == null) missing.Add(nameof(ServiceBusInspectorCoordinator));
-
-            throw new InvalidOperationException(
-                $"Required dependencies were not injected: {string.Join(", ", missing)}. " +
-                "The component cannot initialize without these services registered in the DI container.");
-        }
     }
 
     private void OnStateChanged(object? sender, EventArgs e)
@@ -128,47 +75,47 @@ public sealed partial class ServiceBusInspector : IAsyncDisposable
     private void OnMetricsUpdated(object? sender, QueueMetrics metrics)
     {
         // Update state with new metrics
-        StateValue.Metrics = metrics;
+        State.Metrics = metrics;
     }
 
     private async Task OnPeekMessages()
     {
         // Clear status messages and reset confirmation
-        StateValue.ClearStatusMessages();
-        StateValue.ResetConfirmation();
+        State.ClearStatusMessages();
+        State.ResetConfirmation();
 
-        if (string.IsNullOrEmpty(App.QueueName))
+        if (string.IsNullOrEmpty(State.CurrentQueueName))
         {
-            StateValue.PeekError = "Queue name not configured";
+            State.WarningMessage = "Queue name not configured";
             return;
         }
 
         // Call coordinator to peek messages
-        await Coord.PeekMessagesAsync(
-            App.QueueName!,
+        await Coordinator.PeekMessagesAsync(
+            State.CurrentQueueName,
             maxMessages: 10,
             cancellationToken: _cts?.Token ?? CancellationToken.None);
     }
 
     private async Task OnResetQueue()
     {
-        if (string.IsNullOrEmpty(App.QueueName))
+        if (string.IsNullOrEmpty(State.CurrentQueueName))
         {
-            StateValue.WarningMessage = "Queue name not configured";
+            State.WarningMessage = "Queue name not configured";
             return;
         }
 
         // Call coordinator to handle reset with two-click confirmation
-        (bool success, string message, long mainCount, long dlqCount) = await Coord.ResetQueueAsync(
-            App.QueueName!,
+        (bool success, string message, long mainCount, long dlqCount) = await Coordinator.ResetQueueAsync(
+            State.CurrentQueueName,
             cancellationToken: _cts?.Token ?? CancellationToken.None);
 
         // If successful, refresh metrics
         if (success)
         {
-            StateValue.ClearMessages();
-            await Coord.RefreshMetricsAsync(
-                App.QueueName!,
+            State.ClearMessages();
+            await Coordinator.RefreshMetricsAsync(
+                State.CurrentQueueName,
                 cancellationToken: _cts?.Token ?? CancellationToken.None);
         }
     }
@@ -176,8 +123,8 @@ public sealed partial class ServiceBusInspector : IAsyncDisposable
     private void OnChangeQueue()
     {
         // Clear status messages and reset confirmation
-        StateValue.ClearStatusMessages();
-        StateValue.ResetConfirmation();
+        State.ClearStatusMessages();
+        State.ResetConfirmation();
 
         // Show the queue input form
         _showingQueueInput = true;
@@ -188,26 +135,26 @@ public sealed partial class ServiceBusInspector : IAsyncDisposable
         // Validate queue name
         if (string.IsNullOrWhiteSpace(_newQueueName))
         {
-            StateValue.WarningMessage = "Please enter a queue name";
+            State.WarningMessage = "Please enter a queue name";
             return;
         }
 
         // Clear messages before switching
-        StateValue.ClearMessages();
+        State.ClearMessages();
 
         // Call coordinator to change queue
-        string? error = await Coord.ChangeQueueAsync(
+        string? error = await Coordinator.ChangeQueueAsync(
             _newQueueName,
-            TimeSpan.FromSeconds(App.RefreshIntervalSeconds),
+            TimeSpan.FromSeconds(AppOptions.RefreshIntervalSeconds),
             _cts?.Token ?? CancellationToken.None);
 
         if (error == null)
         {
-            // Update AppOptions to reflect the new queue
-            App.QueueName = _newQueueName;
+            // Update state to reflect the new queue
+            State.CurrentQueueName = _newQueueName;
 
             // Peek messages from the new queue
-            await Coord.PeekMessagesAsync(
+            await Coordinator.PeekMessagesAsync(
                 _newQueueName,
                 maxMessages: 10,
                 cancellationToken: _cts?.Token ?? CancellationToken.None);
@@ -223,28 +170,21 @@ public sealed partial class ServiceBusInspector : IAsyncDisposable
         // Hide input and clear the field
         _showingQueueInput = false;
         _newQueueName = null;
-        StateValue.ClearStatusMessages();
+        State.ClearStatusMessages();
     }
 
     private void OnMessageSelected(ServiceBusReceivedMessage message)
     {
-        StateValue.ResetConfirmation();
-        StateValue.ClearStatusMessages();
-        StateValue.SelectMessage(message);
+        State.ResetConfirmation();
+        State.ClearStatusMessages();
+        State.SelectMessage(message);
     }
 
     public async ValueTask DisposeAsync()
     {
-        // Unsubscribe from events only if services were initialized
-        if (State != null)
-        {
-            State.StateChanged -= OnStateChanged;
-        }
-
-        if (MonitorService != null)
-        {
-            MonitorService.MetricsUpdated -= OnMetricsUpdated;
-        }
+        // Unsubscribe from events
+        State.StateChanged -= OnStateChanged;
+        MonitorService.MetricsUpdated -= OnMetricsUpdated;
 
         // Cancel background operations
         if (_cts != null)
@@ -253,12 +193,9 @@ public sealed partial class ServiceBusInspector : IAsyncDisposable
             _cts.Dispose();
         }
 
-        // Stop polling and dispose only if initialized
-        if (MonitorService != null)
-        {
-            await MonitorService.StopPollingAsync();
-            MonitorService.Dispose();
-        }
+        // Stop polling and dispose
+        await MonitorService.StopPollingAsync();
+        MonitorService.Dispose();
 
         GC.SuppressFinalize(this);
     }

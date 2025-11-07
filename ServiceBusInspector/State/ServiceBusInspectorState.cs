@@ -17,6 +17,7 @@ public class ServiceBusInspectorState
     private string? _successMessage;
     private bool _confirmingReset;
     private QueueMetrics? _metrics;
+    private string? _currentQueueName;
 
     /// <summary>
     /// Event raised when any state property changes.
@@ -123,6 +124,20 @@ public class ServiceBusInspectorState
         set
         {
             _metrics = value;
+            OnStateChanged();
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the current queue name being monitored.
+    /// This is runtime state that can be changed by the user.
+    /// </summary>
+    public string? CurrentQueueName
+    {
+        get => _currentQueueName;
+        set
+        {
+            _currentQueueName = value;
             OnStateChanged();
         }
     }

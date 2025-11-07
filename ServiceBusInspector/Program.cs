@@ -10,16 +10,12 @@ using ServiceBusInspector.Coordination;
 using ServiceBusInspector.State;
 
 // Parse command-line arguments
-string? queueName = null;
 string? connectionString = null;
 int refreshIntervalSeconds = 5;
 for (int i = 0; i < args.Length; i++)
 {
     switch (args[i])
     {
-        case "--queue" when i + 1 < args.Length:
-            queueName = args[i + 1];
-            break;
         case "--conn" when i + 1 < args.Length:
             connectionString = args[i + 1];
             break;
@@ -35,19 +31,26 @@ for (int i = 0; i < args.Length; i++)
     }
 }
 
+// Validate required arguments
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    System.Console.Error.WriteLine("Error: Connection string is required. Use --conn <connection-string>");
+    System.Environment.Exit(1);
+    return; // Unreachable, but helps with flow analysis
+}
+
 IHostBuilder builder = Host.CreateDefaultBuilder(args)
     .ConfigureServices(services =>
     {
         // Register the app options as a singleton service
         services.AddSingleton(new AppOptions
         {
-            QueueName = queueName,
             ConnectionString = connectionString,
             RefreshIntervalSeconds = refreshIntervalSeconds
         });
 
         // Register the Service Bus monitor service
-        services.AddSingleton(_ => new ServiceBusMonitorService(connectionString!));
+        services.AddSingleton(_ => new ServiceBusMonitorService(connectionString));
 
         // Register the state management service
         services.AddSingleton<ServiceBusInspectorState>();
