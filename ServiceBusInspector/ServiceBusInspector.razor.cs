@@ -18,6 +18,14 @@ public sealed partial class ServiceBusInspector : IAsyncDisposable
     private string? _newQueueName;
     private bool _showingQueueInput;
 
+    /// <summary>
+    /// Parameterless constructor required for RazorConsole component activation.
+    /// Dependencies are injected via properties after instantiation.
+    /// </summary>
+    public ServiceBusInspector()
+    {
+    }
+
     // Native AOT Compatibility Note:
     // We cannot use 'required' on injected properties because Native AOT's component
     // activator treats them as constructor parameters, causing instantiation failures.
