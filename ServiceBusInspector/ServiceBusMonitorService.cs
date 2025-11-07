@@ -253,8 +253,8 @@ public sealed class ServiceBusMonitorService : IDisposable
         _pollingTimer = new PeriodicTimer(interval);
 
         // Capture the timer locally to avoid race condition with disposal
-        var timer = _pollingTimer;
-        var cts = _pollingCts;
+        PeriodicTimer? timer = _pollingTimer;
+        CancellationTokenSource? cts = _pollingCts;
 
         _pollingTask = Task.Run(async () =>
         {

@@ -43,33 +43,33 @@
 
         <!-- Message Queue Display -->
         <Grid Expand="true" Columns="2">
-            <MessageListPanel Title="@($"{AppOptions.QueueName}")"
-                              Messages="@State.MainQueueMessages"
-                              ErrorMessage="@State.PeekError"
+            <MessageListPanel Title="@($"{App.QueueName}")"
+                              Messages="@StateValue.MainQueueMessages"
+                              ErrorMessage="@StateValue.PeekError"
                               OnMessageSelected="@OnMessageSelected"/>
 
             <MessageListPanel Title="Dead Letter Queue"
-                              Messages="@State.DeadLetterQueueMessages"
-                              ErrorMessage="@State.PeekError"
+                              Messages="@StateValue.DeadLetterQueueMessages"
+                              ErrorMessage="@StateValue.PeekError"
                               OnMessageSelected="@OnMessageSelected"/>
         </Grid>
 
         <!-- Message Details -->
-        <MessageDetailsTable Message="@State.SelectedMessage"/>
+        <MessageDetailsTable Message="@StateValue.SelectedMessage"/>
     }
 
     <!-- Footer -->
 </Panel>
 
 <!-- Status Messages -->
-<StatusMessageDisplay WarningMessage="@State.WarningMessage"
-                      SuccessMessage="@State.SuccessMessage"/>
+<StatusMessageDisplay WarningMessage="@StateValue.WarningMessage"
+                      SuccessMessage="@StateValue.SuccessMessage"/>
 
 <Align Horizontal="HorizontalAlignment.Right">
     <Columns>
-        <MetricsPanel Metrics="@State.Metrics"/>
+        <MetricsPanel Metrics="@StateValue.Metrics"/>
         <Markup Content="|"></Markup>
-        <Markup Content="@($"Delay {AppOptions.RefreshIntervalSeconds}s")" Foreground="@Color.Grey58"/>
+        <Markup Content="@($"Delay {App.RefreshIntervalSeconds}s")" Foreground="@Color.Grey58"/>
         <Markup Content="|"></Markup>
         <Markup Content="@($"{DateTime.UtcNow:HH:mm:ss} (UTC)")" Foreground="@Color.Grey58"/>
     </Columns>
